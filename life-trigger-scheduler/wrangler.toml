@@ -1,0 +1,14 @@
+name = "life-trigger-scheduler"
+main = "src/index.ts"
+compatibility_date = "2026-07-09"
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "life_trigger_db"
+database_id = "5cbaecfe-b834-4f24-9cae-66a680ad6e92"
+
+[triggers]
+crons = ["* * * * *"]
