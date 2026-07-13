@@ -35,7 +35,7 @@ class HomeScreen extends ConsumerWidget {
     final hasActive = activeTriggers.isNotEmpty;
     final primaryTrigger = hasActive ? activeTriggers.first : null;
 
-    // Calculate deadline if active
+    // 計算 deadline (若已啟動)
     DateTime? deadline;
     if (primaryTrigger != null) {
       if (primaryTrigger.mode == TriggerMode.scheduledDate) {
@@ -54,7 +54,6 @@ class HomeScreen extends ConsumerWidget {
           IconButton(
             icon: Icon(Icons.settings_outlined, color: Colors.grey[400]),
             onPressed: () {
-              // Open dummy settings placeholder
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -82,7 +81,7 @@ class HomeScreen extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // 1. Top status text
+              // 1. 頂部狀態文字
               Column(
                 children: [
                   const SizedBox(height: 20),
@@ -96,7 +95,7 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    hasActive ? '安心交代通知已啟用' : '目前尚未安排任何交代通知',
+                    hasActive ? '安心守護通知已啟用' : '目前尚未安排任何安心守護',
                     style: TextStyle(
                       fontSize: 15,
                       color: Colors.grey[500],
@@ -105,13 +104,13 @@ class HomeScreen extends ConsumerWidget {
                 ],
               ),
 
-              // 2. Center countdown display
+              // 2. 中央倒數計時器
               if (hasActive && deadline != null)
                 CountdownDisplay(deadline: deadline)
               else
                 const SizedBox(height: 100),
 
-              // 3. Huge main button
+              // 3. 大型主按鈕
               Center(
                 child: hasActive
                     ? _buildHugePresenceButton(context, ref, primaryTrigger!)
@@ -129,11 +128,24 @@ class HomeScreen extends ConsumerWidget {
   Widget _buildHugePresenceButton(BuildContext context, WidgetRef ref, Trigger trigger) {
     return GestureDetector(
       onTap: () async {
+        // A. 播放信封收回動畫對話框
+        await showGeneralDialog(
+          context: context,
+          barrierDismissible: false,
+          barrierColor: Colors.black.withOpacity(0.85),
+          transitionDuration: const Duration(milliseconds: 300),
+          pageBuilder: (context, anim1, anim2) {
+            return const RetractHandoverDialog();
+          },
+        );
+
+        // B. 動畫播放完畢後，正式呼叫 confirmSafe 寫入資料庫
         await ref.read(activeTriggersProvider.notifier).confirmSafe(trigger.id);
+        
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('已確認您的狀態，防呆警告通知已重置！'),
+              content: Text('守護狀態已更新，防呆提醒已安全重置！'),
               backgroundColor: Colors.green,
               duration: Duration(seconds: 2),
             ),
@@ -208,6 +220,170 @@ class HomeScreen extends ConsumerWidget {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 信封收回微動畫對話框
+class RetractHandoverDialog extends StatefulWidget {
+  const RetractHandoverDialog({super.key});
+
+  @override
+  State<RetractHandoverDialog> createState() => _RetractHandoverDialogState();
+}
+
+class _RetractHandoverDialogState extends State<RetractHandoverDialog> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _envelopeSlideY;
+  late Animation<double> _envelopeOpacity;
+  late Animation<double> _boxScale;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1600),
+      vsync: this,
+    );
+
+    // 信封下滑動畫 (前 60% 完成)
+    _envelopeSlideY = Tween<double>(begin: -150.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeInBack),
+      ),
+    );
+
+    // 信封漸隱 (0.5 到 0.7 之間)
+    _envelopeOpacity = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.5, 0.7, curve: Curves.easeOut),
+      ),
+    );
+
+    // 安全盒縮放震動 (當信封滑入時震動，約 55% 開始)
+    _boxScale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.0), weight: 55),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.25), weight: 15),
+      TweenSequenceItem(tween: Tween(begin: 1.25, end: 0.95), weight: 15),
+      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 15),
+    ]).animate(_controller);
+
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        Navigator.pop(context);
+      }
+    });
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: 300,
+              width: 300,
+              child: AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // 1. 安全盒 (下方盾牌圖示)
+                      Transform.scale(
+                        scale: _boxScale.value,
+                        child: Container(
+                          width: 140,
+                          height: 140,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.grey[900],
+                            border: Border.all(
+                              color: Colors.greenAccent.withOpacity(0.5),
+                              width: 2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.greenAccent.withOpacity(0.15 * _controller.value),
+                                blurRadius: 20,
+                                spreadRadius: 5,
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.shield_outlined,
+                            size: 64,
+                            color: Colors.greenAccent,
+                          ),
+                        ),
+                      ),
+                      
+                      // 2. 信封 (從上方下滑墜入)
+                      if (_controller.value < 0.7)
+                        Transform.translate(
+                          offset: Offset(0, _envelopeSlideY.value),
+                          child: Opacity(
+                            opacity: _envelopeOpacity.value,
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.blueAccent,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.blueAccent.withOpacity(0.4),
+                                    blurRadius: 10,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.mail_outline,
+                                size: 48,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              '安全收回通知',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 1.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '守護狀態更新中，防呆提醒已安全重置...',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[500],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

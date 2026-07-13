@@ -25,7 +25,7 @@ export async function sendEmail(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "LifeTrigger <onboarding@resend.dev>",
+      from: "安心守護通知 <onboarding@resend.dev>",
       to: to,
       subject: subject,
       html: body,

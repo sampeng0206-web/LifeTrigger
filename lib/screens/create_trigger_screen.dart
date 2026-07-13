@@ -15,7 +15,12 @@ class CreateTriggerScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final _formKey1 = GlobalKey<FormState>();
+  final _formKey2 = GlobalKey<FormState>();
+  final _formKey3 = GlobalKey<FormState>();
+
+  final _pageController = PageController();
+  int _currentStep = 0;
 
   // Time setting state (default 24 hours)
   int _selectedHours = 24;
@@ -32,6 +37,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
 
   @override
   void dispose() {
+    _pageController.dispose();
     _recipientNameController.dispose();
     _recipientEmailController.dispose();
     _messageController.dispose();
@@ -50,19 +56,57 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
     return Duration(hours: _selectedHours, minutes: _selectedMinutes);
   }
 
+  void _onNextPressed() {
+    if (_currentStep == 0) {
+      if (_formKey1.currentState!.validate()) {
+        _nextPage();
+      }
+    } else if (_currentStep == 1) {
+      if (_formKey2.currentState!.validate()) {
+        final duration = _getSelectedDuration();
+        if (duration < const Duration(hours: 1)) {
+          _showErrorDialog('確認時間間隔不得低於 1 小時，這是出於安全考量的基本限制。');
+          return;
+        }
+        if (duration > const Duration(days: 7)) {
+          _showErrorDialog(
+            '本守護天期目前最長支援 7 天。更長的天期（超過 7 天至 365 天）需要搭配雲端備份服務，此功能將於後續更新版本中推出。'
+          );
+          return;
+        }
+        _nextPage();
+      }
+    } else if (_currentStep == 2) {
+      if (_formKey3.currentState!.validate()) {
+        _nextPage();
+      }
+    } else if (_currentStep == 3) {
+      _save();
+    }
+  }
+
+  void _nextPage() {
+    _pageController.nextPage(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+    setState(() {
+      _currentStep++;
+    });
+  }
+
+  void _previousPage() {
+    _pageController.previousPage(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+    setState(() {
+      _currentStep--;
+    });
+  }
+
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-
     final duration = _getSelectedDuration();
-    if (duration < const Duration(hours: 1)) {
-      _showErrorDialog('確認時間不得低於 1 小時，這是出於安全考量的基本限制。');
-      return;
-    }
-    if (duration > const Duration(days: 7)) {
-      _showErrorDialog('地端確認時間不得高於 7 天。更長的安排需要串接雲端備份服務。');
-      return;
-    }
-
     final storage = ref.read(storageServiceProvider);
 
     // 1. Create Recipient
@@ -79,7 +123,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
     final result = await storage.createNewTrigger(
       mode: TriggerMode.quick,
       intervalDuration: duration,
-      autoRenewOnConfirm: true, // Default to recurring confirmation mode
+      autoRenewOnConfirm: true, // 預設為循環確認模式
       recipientIds: [recipient.id],
       message: _messageController.text.trim(),
       sharedMemoryPrompt: _sharedMemoryController.text.trim(),
@@ -93,7 +137,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
             backgroundColor: Colors.grey[900],
             title: const Text('額度已達上限', style: TextStyle(color: Colors.white)),
             content: const Text(
-              '交代體驗版僅支援 3 次免費安排。若要啟用更多，請升級為安心版（買斷）或守護版（訂閱）。',
+              '免費體驗版僅支援 3 次免費安排。若要啟用更多，請升級為安心版（買斷）或守護版（訂閱）。',
               style: TextStyle(color: Colors.grey),
             ),
             actions: [
@@ -106,7 +150,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
         );
       }
     } else {
-      // Success, refresh triggers and exit
+      // 成功，重整 triggers 並退出
       ref.read(activeTriggersProvider.notifier).refresh();
       if (mounted) {
         context.pop();
@@ -119,7 +163,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.grey[900],
-        title: const Text('時間範圍錯誤', style: TextStyle(color: Colors.white)),
+        title: const Text('安全限制提示', style: TextStyle(color: Colors.white)),
         content: Text(message, style: const TextStyle(color: Colors.grey)),
         actions: [
           TextButton(
@@ -133,6 +177,309 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[950],
+      appBar: AppBar(
+        title: const Text('安排安心守護', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildStepIndicator(),
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(), // 只能透過按鈕滑動
+                children: [
+                  _buildStep1(),
+                  _buildStep2(),
+                  _buildStep3(),
+                  _buildStep4(),
+                ],
+              ),
+            ),
+            _buildNavigationButtons(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Row(
+        children: List.generate(4, (index) {
+          final isCompleted = index < _currentStep;
+          final isCurrent = index == _currentStep;
+
+          return Expanded(
+            child: Row(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isCompleted
+                        ? Colors.blueAccent
+                        : isCurrent
+                            ? Colors.blueAccent.withOpacity(0.2)
+                            : Colors.grey[900],
+                    border: Border.all(
+                      color: isCompleted || isCurrent
+                          ? Colors.blueAccent
+                          : Colors.grey[800]!,
+                      width: 2,
+                    ),
+                  ),
+                  child: Center(
+                    child: isCompleted
+                        ? const Icon(Icons.check, color: Colors.white, size: 16)
+                        : Text(
+                            '${index + 1}',
+                            style: TextStyle(
+                              color: isCurrent ? Colors.blueAccent : Colors.grey[500],
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                  ),
+                ),
+                if (index < 3)
+                  Expanded(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      height: 2,
+                      color: index < _currentStep ? Colors.blueAccent : Colors.grey[800],
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildNavigationButtons() {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          if (_currentStep > 0)
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey[900],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.grey[800]!),
+                ),
+              ),
+              onPressed: _previousPage,
+              child: const Text('上一步', style: TextStyle(fontWeight: FontWeight.bold)),
+            )
+          else
+            const SizedBox(),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _currentStep == 3 ? Colors.greenAccent[700] : Colors.blueAccent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 4,
+            ),
+            onPressed: _onNextPressed,
+            child: Text(
+              _currentStep == 3 ? '啟動安心守護' : '下一步',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 第 1 步：我要通知誰？
+  Widget _buildStep1() {
+    return Form(
+      key: _formKey1,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '第一步：我要通知誰？',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '請設定當您長時間未回報安全時，系統要發送通知信件的聯絡人資訊。',
+              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+            ),
+            const SizedBox(height: 24),
+            TextFormField(
+              controller: _recipientNameController,
+              style: const TextStyle(color: Colors.white),
+              decoration: _buildInputDecoration('聯絡人姓名'),
+              validator: (val) => (val == null || val.trim().isEmpty) ? '請輸入聯絡人姓名' : null,
+            ),
+            const SizedBox(height: 20),
+            DropdownButtonFormField<Relationship>(
+              value: _selectedRelationship,
+              dropdownColor: Colors.grey[900],
+              style: const TextStyle(color: Colors.white),
+              decoration: _buildInputDecoration('與聯絡人的關係'),
+              items: Relationship.values.map((r) {
+                return DropdownMenuItem(
+                  value: r,
+                  child: Text(_getRelationshipText(r)),
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() => _selectedRelationship = val);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 第 2 步：怎麼通知？
+  Widget _buildStep2() {
+    return Form(
+      key: _formKey2,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '第二步：怎麼通知？',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '請設定聯絡人的電子信箱，以及系統確認您的安全狀態的時間間隔。',
+              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+            ),
+            const SizedBox(height: 24),
+            TextFormField(
+              controller: _recipientEmailController,
+              style: const TextStyle(color: Colors.white),
+              keyboardType: TextInputType.emailAddress,
+              decoration: _buildInputDecoration('聯絡人 Email'),
+              validator: (val) {
+                if (val == null || val.trim().isEmpty) return '請輸入聯絡人 Email';
+                if (!val.contains('@')) return '請輸入正確的 Email 格式';
+                return null;
+              },
+            ),
+            const SizedBox(height: 28),
+            const Text(
+              '確認安全狀態時間間隔',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildQuickTimeButton('24 小時', 24),
+                _buildQuickTimeButton('72 小時', 72),
+                _buildQuickTimeButton('7 天', 168),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTimeInputField(
+                    label: '小時',
+                    value: _selectedHours,
+                    onChanged: (val) => setState(() => _selectedHours = val ?? 0),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildTimeInputField(
+                    label: '分鐘',
+                    value: _selectedMinutes,
+                    onChanged: (val) => setState(() => _selectedMinutes = val ?? 0),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 第 3 步：我想說什麼？
+  Widget _buildStep3() {
+    return Form(
+      key: _formKey3,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '第三步：我想說什麼？',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '請輸入您預先配置的通知信件內容，以及兩人才知道的共同記憶。',
+              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+            ),
+            const SizedBox(height: 24),
+            TextFormField(
+              controller: _messageController,
+              style: const TextStyle(color: Colors.white),
+              maxLines: 4,
+              maxLength: 300,
+              decoration: _buildInputDecoration('請輸入預置通知信件內容（限 300 字）'),
+              validator: (val) => (val == null || val.trim().isEmpty) ? '請輸入通知信件內容' : null,
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              '共同回憶（身分識別暗語）',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '填寫「你」與「這位收件人」之間只有兩人才知道的一件事（例如某段共同經歷）。這段文字會出現在確認信件的最上方，讓收件人立刻確認這是您本人親自設定的。',
+              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _sharedMemoryController,
+              style: const TextStyle(color: Colors.white),
+              decoration: _buildInputDecoration('例如：我們第一次出遊去了哪裡？'),
+              validator: (val) => (val == null || val.trim().isEmpty) ? '請填寫共同回憶' : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 第 4 步：確認預覽
+  Widget _buildStep4() {
     final storage = ref.watch(storageServiceProvider);
     final quota = storage.getUserQuota();
 
@@ -141,173 +488,86 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
       quotaText = '無限次';
     }
 
-    return Scaffold(
-      backgroundColor: Colors.grey[950],
-      appBar: AppBar(
-        title: const Text('安排安心交代', style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+    final duration = _getSelectedDuration();
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '第四步：預覽並啟動守護',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '請確認以下資訊正確無誤。啟動後，防呆計時器將開始運作。',
+            style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+          ),
+          const SizedBox(height: 24),
+          _buildPreviewContainer(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Section A: Time setting
-                const Text(
-                  '確認時間間隔',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildQuickTimeButton('24 小時', 24),
-                    _buildQuickTimeButton('72 小時', 72),
-                    _buildQuickTimeButton('7 天', 168),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildTimeInputField(
-                        label: '小時',
-                        value: _selectedHours,
-                        onChanged: (val) => setState(() => _selectedHours = val ?? 0),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildTimeInputField(
-                        label: '分鐘',
-                        value: _selectedMinutes,
-                        onChanged: (val) => setState(() => _selectedMinutes = val ?? 0),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
-
-                // Section B: Recipient info
-                const Text(
-                  '收件人資訊',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _recipientNameController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: _buildInputDecoration('收件人姓名'),
-                  validator: (val) => (val == null || val.isEmpty) ? '請輸入收件人姓名' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _recipientEmailController,
-                  style: const TextStyle(color: Colors.white),
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: _buildInputDecoration('收件人 Email'),
-                  validator: (val) {
-                    if (val == null || val.isEmpty) return '請輸入收件人 Email';
-                    if (!val.contains('@')) return '請輸入正確的 Email 格式';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<Relationship>(
-                  value: _selectedRelationship,
-                  dropdownColor: Colors.grey[900],
-                  style: const TextStyle(color: Colors.white),
-                  decoration: _buildInputDecoration('與收件人的關係'),
-                  items: Relationship.values.map((r) {
-                    return DropdownMenuItem(
-                      value: r,
-                      child: Text(_getRelationshipText(r)),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() => _selectedRelationship = val);
-                    }
-                  },
-                ),
-                const SizedBox(height: 32),
-
-                // Section C: Message
-                const Text(
-                  '交代訊息內容',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _messageController,
-                  style: const TextStyle(color: Colors.white),
-                  maxLines: 4,
-                  maxLength: 300,
-                  decoration: _buildInputDecoration('請輸入交代內容（限 300 字）'),
-                  validator: (val) => (val == null || val.isEmpty) ? '請輸入交代訊息' : null,
-                ),
-                const SizedBox(height: 20),
-
-                // Section D: Shared identity passphrase
-                const Text(
-                  '身分識別暗語',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
+                _buildPreviewRow('聯絡對象', '${_recipientNameController.text} (${_getRelationshipText(_selectedRelationship)})'),
+                const Divider(color: Colors.grey, height: 24),
+                _buildPreviewRow('通知 Email', _recipientEmailController.text),
+                const Divider(color: Colors.grey, height: 24),
+                _buildPreviewRow('安全確認間隔', '$hours 小時 $minutes 分鐘'),
+                const Divider(color: Colors.grey, height: 24),
+                _buildPreviewRow('共同回憶暗語', _sharedMemoryController.text),
+                const Divider(color: Colors.grey, height: 24),
+                const Text('預置信件內容：', style: TextStyle(fontSize: 14, color: Colors.grey)),
                 const SizedBox(height: 8),
                 Text(
-                  '填寫「你」與「這位收件人」之間只有兩人才知道的一件事（例如某段共同經歷）。這段文字會出現在到期通知 Email 的最上方，讓收件人立刻確認：「這是本人親自設定的，不是詐騙或系統誤發」。',
-                  style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                  _messageController.text,
+                  style: const TextStyle(fontSize: 15, color: Colors.white, height: 1.4),
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _sharedMemoryController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: _buildInputDecoration('例如：我們第一次出遊去了哪裡？只有你們兩人知道的事'),
-                  validator: (val) => (val == null || val.isEmpty) ? '請填寫身分識別暗語' : null,
-                ),
-                const SizedBox(height: 40),
-
-                // Section E: Quota and Save
-                Center(
-                  child: Column(
-                    children: [
-                      Text(
-                        quotaText,
-                        style: TextStyle(fontSize: 14, color: Colors.grey[400]),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.greenAccent[700],
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(26),
-                            ),
-                          ),
-                          onPressed: _save,
-                          child: const Text(
-                            '儲存並啟動守護',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
               ],
             ),
           ),
-        ),
+          const SizedBox(height: 24),
+          Center(
+            child: Text(
+              quotaText,
+              style: TextStyle(fontSize: 14, color: Colors.grey[400], fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildPreviewContainer({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.grey[900]?.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[800]!),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildPreviewRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 100,
+          child: Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 15, color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
     );
   }
 
