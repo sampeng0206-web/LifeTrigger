@@ -12,3 +12,7 @@ database_id = "5cbaecfe-b834-4f24-9cae-66a680ad6e92"
 
 [triggers]
 crons = ["* * * * *"]
+
+[vars]
+ENVIRONMENT = "production"
+
