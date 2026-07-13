@@ -71,4 +71,4 @@
    * 在 iOS 系統上，本地通知（排程防呆警告）在 App 被使用者手動往上滑關閉（Force Quit）後，仍會由 iOS 系統照常發出；但 App 內部的 `checkOverdueTriggers` 自動修正狀態邏輯將無法背景執行，必須等到使用者重新打開 App 時才會觸發地端狀態更新。此為 iOS 本地排程技術限制，故本專案必須取捨：於 W1 本地端僅提供 App 重新啟動時的補行狀態校正，而真正的逾期觸發與信件發送，後續 W2 必須依賴雲端伺服器（Cloud Sync / Cloud Timer）進行可靠的判定。
 
 ### Week 2
-*(本週無重大取捨事項)*
+1. **免費方案無自動化用量警報限制**：因Cloudflare與Resend免費方案皆未提供自動化用量警報功能，改為由開發者定期人工查看Resend Dashboard的Usage頁面與Cloudflare Dashboard的Analytics/Workers用量統計，確認是否接近免費額度上限。待未來使用規模成長至需要考慮升級付費方案時，再重新評估對應的自動化監控機制。
