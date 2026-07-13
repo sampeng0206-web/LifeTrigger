@@ -289,6 +289,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
           else
             const SizedBox(),
           ElevatedButton(
+            key: const Key('next_button'),
             style: ElevatedButton.styleFrom(
               backgroundColor: _currentStep == 3 ? Colors.greenAccent[700] : Colors.blueAccent,
               foregroundColor: Colors.white,
@@ -329,6 +330,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
             ),
             const SizedBox(height: 24),
             TextFormField(
+              key: const Key('name_field'),
               controller: _recipientNameController,
               style: const TextStyle(color: Colors.white),
               decoration: _buildInputDecoration('聯絡人姓名'),
@@ -336,6 +338,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
             ),
             const SizedBox(height: 20),
             DropdownButtonFormField<Relationship>(
+              key: const Key('relationship_dropdown'),
               value: _selectedRelationship,
               dropdownColor: Colors.grey[900],
               style: const TextStyle(color: Colors.white),
@@ -378,6 +381,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
             ),
             const SizedBox(height: 24),
             TextFormField(
+              key: const Key('email_field'),
               controller: _recipientEmailController,
               style: const TextStyle(color: Colors.white),
               keyboardType: TextInputType.emailAddress,
@@ -448,6 +452,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
             ),
             const SizedBox(height: 24),
             TextFormField(
+              key: const Key('message_field'),
               controller: _messageController,
               style: const TextStyle(color: Colors.white),
               maxLines: 4,
@@ -467,6 +472,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
             ),
             const SizedBox(height: 12),
             TextFormField(
+              key: const Key('shared_memory_field'),
               controller: _sharedMemoryController,
               style: const TextStyle(color: Colors.white),
               decoration: _buildInputDecoration('例如：我們第一次出遊去了哪裡？'),
@@ -597,6 +603,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
     required ValueChanged<int?> onChanged,
   }) {
     return TextFormField(
+      key: Key('${label}_field'),
       initialValue: value.toString(),
       style: const TextStyle(color: Colors.white),
       keyboardType: TextInputType.number,

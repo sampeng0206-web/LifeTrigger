@@ -10,6 +10,9 @@
 ### Week 2
 1. **正式環境的自動 Cron Trigger 驗證**：目前在本地使用 `/trigger-cron` 模擬手動觸發排程測試成功，但真正的 Cloudflare Cron Trigger 排程（`crons = ["* * * * *"]`）是否能在正式環境自動且每分鐘執行，需要等待後續將 Worker 實際 deploy 到雲端正式環境後進行實地驗證。
 
+### Week 3
+1. **Android 模擬器自動化測試中斷**：本次 Android 模擬器整合測試自動化腳本反覆卡在解鎖與開機熱重啟環節。為了避免硬解複雜測試腳本耽誤進度，本自動化截圖測試已中斷處理。後續將改用「手動啟動 App、手動操作、並透過手動 adb 截圖」的方式驗證 4 步驟 UI 與信封收回動畫，不再使用自動化截圖測試腳本。
+
 ---
 
 ## 決定
@@ -49,6 +52,9 @@
    - 由於用量警報為控制台層級設定，已擬定操作指引：
      - **Cloudflare**：在 Dashboard 的 Notifications 頁面設定 Workers Requests 每日用量達到 80,000 次（80% 額度）時發送電子郵件通知。
      - **Resend**：在 Resend Dashboard 的 Usage 設定每日發信量達到 80 封（80% 額度）時發送通知，防止資源超限。
+
+### Week 3
+1. **正式 App 圖示替換**：引進並配置了 `flutter_launcher_icons: ^0.13.1` 套件，將 App 的正式美術素材 `image/app_icon_1024.png.png` 設定為正式圖示，並自動生成 Android 及 iOS 所需的所有尺寸規格，成功替換了舊專案的暫用圖示。
 
 ---
 
