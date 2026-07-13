@@ -61,6 +61,8 @@
 ### Week 2
 1. **未偵測到全域 Node.js 開發環境的繞過**：
    - 由於非互動式背景指令執行環境沒有載入使用者的全域 Node.js/NVM PATH，我們在本地開發測試時，繞過全域路徑限制，直接指定使用 Playwright 的本機 `node.exe` 執行 `node_modules\wrangler\bin\wrangler.js` 來完成資料庫初始化與本地伺服器啟動，不影響程式碼本身的正確性。
+2. **雲端同步串接延後至 Week 5**：
+   - 原定於 Week 2 進行的 Flutter 端與雲端 Worker REST API 同步串接（cloud_sync_service 任務 5），為了配合 Week 3 建立流程 UI 的重構，以及在 Week 5 集中處理多端同步與備份的完整性，已正式調整至 Week 5 執行。Week 2 本地端建立的 Trigger 維持在 1 小時至 7 天的本地上限，暫不與雲端 API 互動。
 
 ---
 
