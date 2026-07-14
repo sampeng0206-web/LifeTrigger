@@ -54,7 +54,7 @@
      - **Resend**：在 Resend Dashboard 的 Usage 設定每日發信量達到 80 封（80% 額度）時發送通知，防止資源超限。
 
 ### Week 3
-1. **正式 App 圖示替換**：引進並配置了 `flutter_launcher_icons: ^0.13.1` 套件，將 App 的正式美術素材 `image/app_icon_1024.png.png` 設定為正式圖示，並自動生成 Android 及 iOS 所需的所有尺寸規格，成功替換了舊專案的暫用圖示。
+1. **正式 App 圖示替換**：引進並配置了 `flutter_launcher_icons: ^0.13.1` 套件，將 App 的正式美術素材 `image/app_icon_1024.png` 設定為正式圖示，並自動生成 Android 及 iOS 所需的所有尺寸規格，成功替換了舊專案的暫用圖示。
 
 ---
 
