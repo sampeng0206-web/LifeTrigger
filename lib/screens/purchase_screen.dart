@@ -106,7 +106,10 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
     }
   }
 
-  // 模擬開發模式下的本地快速開通
+  // ============================================================================
+  // 【僅供本地開發測試】模擬購買流程，用於無金流 API 連線的 Debug 模式。
+  // 注意：此方法及其調用僅在 kDebugMode 啟用，Release Build 編譯時會被 Tree-shaking 完全剪枝。
+  // ============================================================================
   Future<void> _simulatePurchase(String entitlementId) async {
     setState(() {
       _isLoading = true;
@@ -183,8 +186,10 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
                   isSubscription: false,
                   onPressed: () {
                     if (lifetimePackage != null) {
+                      // 1. 正式環境/Release/TestFlight：使用 RevenueCat SDK 執行實際的 App Store / Google Play 購買
                       _buyPackage(lifetimePackage);
                     } else if (kDebugMode) {
+                      // 2. 僅本地 Debug 測試：繞過連線模擬快速解鎖（Release Build 會被 Dart 編譯器自動完全剪枝）
                       _simulatePurchase('local_unlimited');
                     }
                   },
@@ -201,8 +206,10 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
                   isSubscription: true,
                   onPressed: () {
                     if (annualPackage != null) {
+                      // 1. 正式環境/Release/TestFlight：使用 RevenueCat SDK 執行實際的 App Store / Google Play 購買
                       _buyPackage(annualPackage);
                     } else if (kDebugMode) {
+                      // 2. 僅本地 Debug 測試：繞過連線模擬快速解鎖（Release Build 會被 Dart 編譯器自動完全剪枝）
                       _simulatePurchase('cloud_guardian');
                     }
                   },
