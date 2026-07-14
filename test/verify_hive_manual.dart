@@ -1,3 +1,14 @@
+// ============================================================================
+// 手動診斷工具 (Manual Diagnostic Tool)
+// ============================================================================
+// 本檔案僅作為開發與測試期間手動驗證 Hive 資料庫內容之用途，不屬於常態單元測試。
+// 檔名特意命名為 verify_hive_manual.dart（非 _test.dart 結尾），
+// 以避免自動化測試套件（flutter test）在常態執行時自動載入此檔案而導致失敗。
+//
+// 手動執行指令：
+// flutter test test/verify_hive_manual.dart
+// ============================================================================
+
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
