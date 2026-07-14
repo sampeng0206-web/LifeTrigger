@@ -56,17 +56,56 @@ class HomeScreen extends ConsumerWidget {
             onPressed: () {
               showDialog(
                 context: context,
-                builder: (context) => AlertDialog(
+                builder: (context) => SimpleDialog(
                   backgroundColor: Colors.grey[900],
-                  title: const Text('本服務設定', style: TextStyle(color: Colors.white)),
-                  content: const Text(
-                    '設定與說明功能排在 W6 實作，目前為預留位置。',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('關閉'),
+                  title: const Text('設定與說明', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  children: [
+                    SimpleDialogOption(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        context.push('/help');
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+                        child: Row(
+                          children: const [
+                            Icon(Icons.help_outline, color: Colors.blueAccent),
+                            SizedBox(width: 12),
+                            Text('使用說明與條款', style: TextStyle(color: Colors.white, fontSize: 14)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Divider(color: Colors.grey[800], height: 1),
+                    SimpleDialogOption(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        context.push('/purchase');
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+                        child: Row(
+                          children: const [
+                            Icon(Icons.star_outline, color: Colors.amber),
+                            SizedBox(width: 12),
+                            Text('方案升級與恢復', style: TextStyle(color: Colors.white, fontSize: 14)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Divider(color: Colors.grey[800], height: 1),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0, right: 16.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('關閉', style: TextStyle(color: Colors.grey)),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

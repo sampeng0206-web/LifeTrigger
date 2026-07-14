@@ -13,6 +13,9 @@
 ### Week 3
 1. **Android 模擬器自動化測試中斷**：本次 Android 模擬器整合測試自動化腳本反覆卡在解鎖與開機熱重啟環節。為了避免硬解複雜測試腳本耽誤進度，本自動化截圖測試已中斷處理。後續將改用「手動啟動 App、手動操作、並透過手動 adb 截圖」的方式驗證 4 步驟 UI 與信封收回動畫，不再使用自動化截圖測試腳本。
 
+### Week 4
+1. **購買流程真機驗證**：由於 RevenueCat 與 Apple ID 整合測試需要 App Store Connect Sandbox 測試人員帳號與 TestFlight 簽章打包，本週地端功能與模擬購買流程已完成驗證，正式實機金流驗證待 TestFlight 階段確認。
+
 ---
 
 ## 決定
@@ -60,6 +63,13 @@
    - **時間防呆限制**：在步驟 2 設定時間間隔時，若輸入超過 7 天（168 小時），系統能正確顯示安全限制提示，並阻擋使用者繼續前往下一步。
    - **信封收回動畫**：當使用者在首頁「守護中」狀態下點擊「我還在」按鈕，系統會撥送完整的「安全收回信封」動畫，隨後顯示成功 Snackbar 並將防呆計時器重置。
    - **Hive 資料正確性**：經由手動測試解密腳本 `verify_hive_manual.dart` 確認，寫入 Hive 資料庫的欄位與 JSON 結構皆與使用者輸入完全一致（John, test@example.com, ThisIsTestMessage, SecretMemoryCode），且免費額度亦成功扣減 1。
+
+### Week 4
+1. **三方 Product/Package/Entitlement ID 核對**：逐字確認並比對了以下 ID 在 App Store Connect、RevenueCat 後台及 `purchase_screen.dart` 中完全一致：
+   - 交代安心版：`com.sampeng.lifetrigger.localunlimited` (Package: `$rc_lifetime`, Entitlement: `local_unlimited`)
+   - 交代守護版：`com.sampeng.lifetrigger.cloudguardian.yearly` (Package: `$rc_annual`, Entitlement: `cloud_guardian`)
+2. **RevenueCat 模擬購買與本地 Hive 同步**：實作了 `PurchaseService` 進行 Offering 撈取與 CustomerInfo 狀態同步，並在 `kDebugMode` 下整合了 `_simulatePurchase` 模擬購買邏輯。經手動 `verify_hive_manual.dart` 驗證，模擬購買安心版能正確將 `isLocalUnlimited` 改寫為 `true` 並持久化寫入本地 Hive 資料庫 `user_quotas.hive`。
+3. **AdMob 廣告投放與付費隱藏**：在 `HelpTermsScreen` 與 `SuccessScreen` 底部嵌入 AdMob BannerAd，指定 `nonPersonalizedAds: true` 載入非個人化廣告。當偵測到使用者已付費（安心版或守護版已啟用）時，自動將 BannerAd 隱藏並不進行廣告載入，節省資源。
 
 ---
 

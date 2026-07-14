@@ -74,9 +74,11 @@ void main() {
       final val = quotaBox.get(key);
       if (val != null) {
         print('Key: $key');
-        print('  Free Triggers Remaining: ${val.freeTriggersRemaining}');
-        print('  IsLocalUnlimited: ${val.isLocalUnlimited}');
-        print('  IsCloudGuardianActive: ${val.isCloudGuardianActive}');
+        print('  Before - Free Triggers: ${val.freeTriggersRemaining}, IsLocalUnlimited: ${val.isLocalUnlimited}, IsCloudGuardianActive: ${val.isCloudGuardianActive}');
+        val.isLocalUnlimited = false;
+        val.isCloudGuardianActive = false;
+        await quotaBox.put(key, val);
+        print('  After - Free Triggers: ${val.freeTriggersRemaining}, IsLocalUnlimited: ${val.isLocalUnlimited}, IsCloudGuardianActive: ${val.isCloudGuardianActive}');
       }
     }
 

@@ -143,17 +143,24 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('好的'),
+                child: const Text('取消', style: TextStyle(color: Colors.grey)),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.push('/purchase');
+                },
+                child: const Text('去升級', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
         );
       }
     } else {
-      // 成功，重整 triggers 並退出
+      // 成功，重整 triggers 並導向成功畫面
       ref.read(activeTriggersProvider.notifier).refresh();
       if (mounted) {
-        context.pop();
+        context.go('/success');
       }
     }
   }
