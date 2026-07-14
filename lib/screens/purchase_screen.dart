@@ -106,6 +106,15 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
     }
   }
 
+  void _showConnectionError() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('無法連接商店，請檢查網路連線後重試'),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
+  }
+
   // ============================================================================
   // 【僅供本地開發測試】模擬購買流程，用於無金流 API 連線的 Debug 模式。
   // 注意：此方法及其調用僅在 kDebugMode 啟用，Release Build 編譯時會被 Tree-shaking 完全剪枝。
@@ -191,6 +200,9 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
                     } else if (kDebugMode) {
                       // 2. 僅本地 Debug 測試：繞過連線模擬快速解鎖（Release Build 會被 Dart 編譯器自動完全剪枝）
                       _simulatePurchase('local_unlimited');
+                    } else {
+                      // 3. 正式環境下因連線失敗 Package 為空，提示使用者
+                      _showConnectionError();
                     }
                   },
                 ),
@@ -211,6 +223,9 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
                     } else if (kDebugMode) {
                       // 2. 僅本地 Debug 測試：繞過連線模擬快速解鎖（Release Build 會被 Dart 編譯器自動完全剪枝）
                       _simulatePurchase('cloud_guardian');
+                    } else {
+                      // 3. 正式環境下因連線失敗 Package 為空，提示使用者
+                      _showConnectionError();
                     }
                   },
                 ),
