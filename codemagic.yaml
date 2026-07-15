@@ -25,6 +25,7 @@ workflows:
         script: cd ios && pod install --repo-update
       - name: Build iOS release
         script: |
+          xcode-project use-profiles --project ios/Runner.xcodeproj
           plutil -replace MinimumOSVersion -string "13.0" ios/Flutter/AppFrameworkInfo.plist
           cat > /tmp/export_options.plist << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
