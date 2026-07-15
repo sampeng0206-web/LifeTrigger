@@ -9,7 +9,7 @@ workflows:
         provisioning_profiles:
           - lifetrigger_appstore
         certificates:
-          - lifetrigger_dist
+          - legacyflow_dist
       vars:
         APP_STORE_CONNECT_ISSUER_ID: 5b4d9000-41c4-470d-8f89-4154cb59bd33
         APP_STORE_CONNECT_KEY_IDENTIFIER: 9YR5628QVZ
