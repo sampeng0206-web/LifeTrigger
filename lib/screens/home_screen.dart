@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:uuid/uuid.dart';
 import '../services/storage_service.dart';
+import '../services/cloud_sync_service.dart';
+import '../services/notification_service.dart';
+import '../services/purchase_service.dart';
 import '../models/trigger.dart';
+import '../models/recipient.dart';
 import '../widgets/countdown_display.dart';
 
 final activeTriggersProvider = StateNotifierProvider<ActiveTriggersNotifier, List<Trigger>>((ref) {
   return ActiveTriggersNotifier(ref.read(storageServiceProvider));
 });
+
+final restoreCheckedProvider = StateProvider<bool>((ref) => false);
 
 class ActiveTriggersNotifier extends StateNotifier<List<Trigger>> {
   final StorageService _storageService;
@@ -34,6 +41,22 @@ class HomeScreen extends ConsumerWidget {
     final activeTriggers = ref.watch(activeTriggersProvider);
     final hasActive = activeTriggers.isNotEmpty;
     final primaryTrigger = hasActive ? activeTriggers.first : null;
+
+    // 自動偵測空資料庫與訂閱狀態以提示還原
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final checked = ref.read(restoreCheckedProvider);
+      if (!checked) {
+        ref.read(restoreCheckedProvider.notifier).state = true;
+        
+        final storage = ref.read(storageServiceProvider);
+        if (storage.getAllTriggers().isEmpty) {
+          final quota = storage.getUserQuota();
+          if (quota.isCloudGuardianActive) {
+            _showRestoreDialog(context, ref);
+          }
+        }
+      }
+    });
 
     // 計算 deadline (若已啟動)
     DateTime? deadline;
@@ -90,6 +113,23 @@ class HomeScreen extends ConsumerWidget {
                             Icon(Icons.star_outline, color: Colors.amber),
                             SizedBox(width: 12),
                             Text('方案升級與恢復', style: TextStyle(color: Colors.white, fontSize: 14)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Divider(color: Colors.grey[800], height: 1),
+                    SimpleDialogOption(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _triggerManualRestore(context, ref);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+                        child: Row(
+                          children: const [
+                            Icon(Icons.cloud_download_outlined, color: Colors.blueAccent),
+                            SizedBox(width: 12),
+                            Text('從雲端還原守護', style: TextStyle(color: Colors.white, fontSize: 14)),
                           ],
                         ),
                       ),
@@ -262,6 +302,285 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+
+  void _showRestoreDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text('雲端資料還原', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          '系統偵測到此裝置本地尚未設定守護，且您擁有「交代守護版」資格。是否要從雲端搜尋並還原您的守護紀錄？',
+          style: TextStyle(color: Colors.grey),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('暫時不要', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _performRestore(context, ref);
+            },
+            child: const Text('立即還原', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _triggerManualRestore(BuildContext context, WidgetRef ref) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      await ref.read(purchaseServiceProvider).checkEntitlements();
+    } catch (e) {
+      debugPrint('Error checking entitlements: $e');
+    } finally {
+      if (context.mounted) {
+        Navigator.pop(context); // 關閉 loading
+      }
+    }
+
+    final quota = ref.read(storageServiceProvider).getUserQuota();
+    if (!quota.isCloudGuardianActive) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: Colors.grey[900],
+          title: const Text('權限不足', style: TextStyle(color: Colors.white)),
+          content: const Text('從雲端還原守護資料為「交代守護版」專屬功能。請先升級您的訂閱方案。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('確認'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    _performRestore(context, ref);
+  }
+
+  Future<void> _performRestore(BuildContext context, WidgetRef ref) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: SimpleDialog(
+          backgroundColor: Colors.transparent,
+          children: [
+            Center(
+              child: CircularProgressIndicator(),
+            ),
+            SizedBox(height: 16),
+            Center(
+              child: Text('正在從雲端載入守護資料...', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final syncService = ref.read(cloudSyncServiceProvider);
+    final cloudTriggers = await syncService.restoreCloudTriggers();
+
+    if (context.mounted) {
+      Navigator.pop(context); // 關閉 loading
+    }
+
+    if (cloudTriggers == null) {
+      _showResultDialog(context, '讀取失敗', '無法連線至雲端伺服器，請檢查網路連線。');
+      return;
+    }
+
+    if (cloudTriggers.isEmpty) {
+      _showResultDialog(context, '無雲端資料', '您的帳號目前沒有任何儲存於雲端的守護紀錄。');
+      return;
+    }
+
+    // 顯示雲端 Trigger 列表供使用者選擇
+    _showSelectTriggersDialog(context, ref, cloudTriggers);
+  }
+
+  void _showResultDialog(BuildContext context, String title, String content) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: Text(title, style: const TextStyle(color: Colors.white)),
+        content: Text(content, style: const TextStyle(color: Colors.grey)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('確認'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSelectTriggersDialog(
+      BuildContext context, WidgetRef ref, List<Map<String, dynamic>> cloudTriggers) {
+    final selectedStates = List<bool>.generate(cloudTriggers.length, (index) => true);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: Colors.grey[900],
+            title: const Text('選擇要還原的守護', style: TextStyle(color: Colors.white)),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: cloudTriggers.length,
+                separatorBuilder: (context, index) => Divider(color: Colors.grey[800]),
+                itemBuilder: (context, index) {
+                  final trigger = cloudTriggers[index];
+                  final emails = trigger['recipient_emails'] ?? '';
+                  final payload = trigger['payload'] ?? {};
+                  final msg = payload['message'] ?? '';
+                  final deadlineStr = trigger['deadline'] ?? '';
+                  
+                  String timeLabel = '';
+                  try {
+                    final deadline = DateTime.parse(deadlineStr).toLocal();
+                    timeLabel = '到期: ${deadline.month}/${deadline.day} ${deadline.hour.toString().padLeft(2, '0')}:${deadline.minute.toString().padLeft(2, '0')}';
+                  } catch (e) {
+                    timeLabel = '到期日格式錯誤';
+                  }
+
+                  return CheckboxListTile(
+                    title: Text(
+                      emails,
+                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        Text(
+                          timeLabel,
+                          style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          msg,
+                          style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                    value: selectedStates[index],
+                    activeColor: Colors.blueAccent,
+                    checkColor: Colors.white,
+                    onChanged: (val) {
+                      setDialogState(() {
+                        selectedStates[index] = val ?? false;
+                      });
+                    },
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('取消', style: TextStyle(color: Colors.grey)),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  
+                  int restoreCount = 0;
+                  final storage = ref.read(storageServiceProvider);
+                  final notificationService = ref.read(notificationServiceProvider);
+
+                  for (int i = 0; i < cloudTriggers.length; i++) {
+                    if (selectedStates[i]) {
+                      final triggerJson = cloudTriggers[i];
+                      final id = triggerJson['id'];
+                      final emailsStr = triggerJson['recipient_emails'] as String;
+                      final payload = triggerJson['payload'] as Map<String, dynamic>;
+                      final message = payload['message'] as String;
+                      final sharedMemory = payload['shared_memory'] as String;
+                      final deadlineStr = triggerJson['deadline'] as String;
+
+                      final emails = emailsStr.split(',').map((e) => e.trim()).toList();
+                      final recipientIds = <String>[];
+                      for (var email in emails) {
+                        final recipientId = const Uuid().v4();
+                        final recipient = Recipient(
+                          id: recipientId,
+                          name: email.split('@').first,
+                          email: email,
+                          relationship: Relationship.friend,
+                        );
+                        await storage.saveRecipient(recipient);
+                        recipientIds.add(recipientId);
+                      }
+
+                      final deadlineUtc = DateTime.parse(deadlineStr);
+                      final localDeadline = deadlineUtc.toLocal();
+
+                      final newTrigger = Trigger(
+                        id: id,
+                        mode: TriggerMode.quick,
+                        scheduledDeadline: localDeadline,
+                        autoRenewOnConfirm: true,
+                        requiresCloud: triggerJson['requires_cloud'] == 1,
+                        recipientIds: recipientIds,
+                        deliveryMethod: DeliveryMethod.email,
+                        message: message,
+                        sharedMemoryPrompt: sharedMemory,
+                        importance: Importance.normal,
+                        status: TriggerStatus.waiting,
+                        lastConfirmedAt: DateTime.now(),
+                        isActive: true,
+                      );
+
+                      await storage.saveTrigger(newTrigger);
+
+                      await notificationService.scheduleWarningNotifications(newTrigger);
+
+                      restoreCount++;
+                    }
+                  }
+
+                  if (restoreCount > 0) {
+                    ref.read(activeTriggersProvider.notifier).refresh();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('成功還原 $restoreCount 筆安心守護！'),
+                          backgroundColor: Colors.greenAccent[700],
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('確認還原', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
 }
 
 /// 信封收回微動畫對話框
@@ -427,3 +746,4 @@ class _RetractHandoverDialogState extends State<RetractHandoverDialog> with Sing
     );
   }
 }
+

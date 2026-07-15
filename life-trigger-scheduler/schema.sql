@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS cloud_triggers (
   id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
   encrypted_payload TEXT NOT NULL,
   recipient_emails TEXT NOT NULL,
   deadline TEXT NOT NULL,
@@ -11,3 +12,4 @@ CREATE TABLE IF NOT EXISTS cloud_triggers (
 );
 
 CREATE INDEX IF NOT EXISTS idx_trigger_lookup ON cloud_triggers (is_active, requires_cloud, deadline);
+CREATE INDEX IF NOT EXISTS idx_trigger_user ON cloud_triggers (user_id);

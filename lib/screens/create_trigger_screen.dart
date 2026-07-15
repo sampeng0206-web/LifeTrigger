@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import '../services/storage_service.dart';
+import '../services/purchase_service.dart';
 import '../models/trigger.dart';
 import '../models/recipient.dart';
 import 'home_screen.dart';
@@ -56,7 +57,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
     return Duration(hours: _selectedHours, minutes: _selectedMinutes);
   }
 
-  void _onNextPressed() {
+  Future<void> _onNextPressed() async {
     if (_currentStep == 0) {
       if (_formKey1.currentState!.validate()) {
         _nextPage();
@@ -68,11 +69,41 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
           _showErrorDialog('確認時間間隔不得低於 1 小時，這是出於安全考量的基本限制。');
           return;
         }
-        if (duration > const Duration(days: 7)) {
-          _showErrorDialog(
-            '本守護天期目前最長支援 7 天。更長的天期（超過 7 天至 365 天）需要搭配雲端備份服務，此功能將於後續更新版本中推出。'
-          );
-          return;
+
+        // 呼叫 checkEntitlements() 同步最新狀態
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+
+        try {
+          await ref.read(purchaseServiceProvider).checkEntitlements();
+        } catch (e) {
+          debugPrint('Error checking entitlements: $e');
+        } finally {
+          if (mounted) {
+            Navigator.pop(context); // 關閉 Loading
+          }
+        }
+
+        final quota = ref.read(storageServiceProvider).getUserQuota();
+        final hasCloudGuardian = quota.isCloudGuardianActive;
+
+        if (hasCloudGuardian) {
+          if (duration > const Duration(days: 365)) {
+            _showErrorDialog('自訂時間間隔最長不得超過 365 天。');
+            return;
+          }
+        } else {
+          if (duration > const Duration(days: 7)) {
+            _showErrorDialog(
+              '本守護天期目前最長支援 7 天。更長的天期（超過 7 天至 365 天）需要搭配雲端備份服務，此功能將於後續更新版本中推出。'
+            );
+            return;
+          }
         }
         _nextPage();
       }
@@ -151,6 +182,26 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
                   context.push('/purchase');
                 },
                 child: const Text('去升級', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      }
+    } else if (result.status == CreateTriggerStatus.cloudSyncFailed) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: Colors.grey[900],
+            title: const Text('雲端同步失敗', style: TextStyle(color: Colors.white)),
+            content: const Text(
+              '無法將此守護上傳至雲端伺服器，請檢查您的網路連線後重試。',
+              style: TextStyle(color: Colors.grey),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('確定', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
               ),
             ],
           ),

@@ -5,6 +5,7 @@ import '../models/trigger.dart';
 import '../models/recipient.dart';
 import '../models/user_quota.dart';
 import 'notification_service.dart';
+import 'cloud_sync_service.dart';
 
 final storageServiceProvider = Provider<StorageService>((ref) {
   return StorageService(ref);
@@ -28,6 +29,7 @@ class DurationAdapter extends TypeAdapter<Duration> {
 enum CreateTriggerStatus {
   success,
   quotaExceeded,
+  cloudSyncFailed,
 }
 
 class CreateTriggerResult {
@@ -168,6 +170,18 @@ class StorageService {
     // Schedule notifications
     await _ref.read(notificationServiceProvider).scheduleWarningNotifications(newTrigger);
 
+    // Sync to cloud if needed
+    if (requiresCloud) {
+      final success = await _ref.read(cloudSyncServiceProvider).uploadCloudTrigger(newTrigger);
+      if (!success) {
+        newTrigger.status = TriggerStatus.failed;
+        newTrigger.failureReason = FailureReason.cloudSyncFailed;
+        newTrigger.isActive = false;
+        await saveTrigger(newTrigger);
+        return CreateTriggerResult(CreateTriggerStatus.cloudSyncFailed, newTrigger);
+      }
+    }
+
     return CreateTriggerResult(CreateTriggerStatus.success, newTrigger);
   }
 
@@ -186,6 +200,11 @@ class StorageService {
       
       // Reschedule notifications
       await _ref.read(notificationServiceProvider).scheduleWarningNotifications(trigger);
+
+      // Sync to cloud
+      if (trigger.requiresCloud) {
+        await _ref.read(cloudSyncServiceProvider).uploadCloudTrigger(trigger);
+      }
     } else if (!trigger.autoRenewOnConfirm) {
       trigger.status = TriggerStatus.cancelled;
       trigger.failureReason = FailureReason.cancelledByUser;
@@ -194,6 +213,11 @@ class StorageService {
 
       // Cancel notifications
       await _ref.read(notificationServiceProvider).cancelScheduledNotifications(triggerId);
+
+      // Sync to cloud (cancellation)
+      if (trigger.requiresCloud) {
+        await _ref.read(cloudSyncServiceProvider).uploadCloudTrigger(trigger);
+      }
 
       // Trigger "retract handover" callback
       if (onRetractHandoverAnimation != null) {
