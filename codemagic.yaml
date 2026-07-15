@@ -1,0 +1,59 @@
+workflows:
+  ios-release:
+    name: LifeTrigger iOS Release
+    max_build_duration: 60
+    environment:
+      groups:
+        - Ios-credentials
+      ios_signing:
+        provisioning_profiles:
+          - lifetrigger_appstore
+        certificates:
+          - lifetrigger_dist
+      vars:
+        APP_STORE_CONNECT_ISSUER_ID: 5b4d9000-41c4-470d-8f89-4154cb59bd33
+        APP_STORE_CONNECT_KEY_IDENTIFIER: 9YR5628QVZ
+      flutter: 3.27.4
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Disable Swift Package Manager
+        script: flutter config --no-enable-swift-package-manager
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Pod install
+        script: cd ios && pod install --repo-update
+      - name: Build iOS release
+        script: |
+          plutil -replace MinimumOSVersion -string "13.0" ios/Flutter/AppFrameworkInfo.plist
+          cat > /tmp/export_options.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.sampeng.lifetrigger</key>
+              <string>lifetrigger_appstore</string>
+            </dict>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>teamID</key>
+            <string>V573KVW28N</string>
+          </dict>
+          </plist>
+          EOF
+          flutter build ipa --release \
+            --build-number=1 \
+            --export-options-plist=/tmp/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - "**/*.ipa"
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
