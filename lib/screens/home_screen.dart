@@ -8,7 +8,9 @@ import '../services/notification_service.dart';
 import '../services/purchase_service.dart';
 import '../models/trigger.dart';
 import '../models/recipient.dart';
-import '../widgets/countdown_display.dart';
+import '../widgets/brand_intro_view.dart';
+import '../widgets/trigger_list_view.dart';
+import '../widgets/confirm_all_dialog.dart';
 
 final activeTriggersProvider = StateNotifierProvider<ActiveTriggersNotifier, List<Trigger>>((ref) {
   return ActiveTriggersNotifier(ref.read(storageServiceProvider));
@@ -31,6 +33,14 @@ class ActiveTriggersNotifier extends StateNotifier<List<Trigger>> {
     await _storageService.confirmSafe(id);
     refresh();
   }
+
+  Future<void> confirmAllSafe() async {
+    final active = _storageService.getActiveTriggers();
+    for (var trigger in active) {
+      await _storageService.confirmSafe(trigger.id);
+    }
+    refresh();
+  }
 }
 
 class HomeScreen extends ConsumerWidget {
@@ -40,7 +50,6 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final activeTriggers = ref.watch(activeTriggersProvider);
     final hasActive = activeTriggers.isNotEmpty;
-    final primaryTrigger = hasActive ? activeTriggers.first : null;
 
     // 自動偵測空資料庫與訂閱狀態以提示還原
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -57,16 +66,6 @@ class HomeScreen extends ConsumerWidget {
         }
       }
     });
-
-    // 計算 deadline (若已啟動)
-    DateTime? deadline;
-    if (primaryTrigger != null) {
-      if (primaryTrigger.mode == TriggerMode.scheduledDate) {
-        deadline = primaryTrigger.scheduledDeadline;
-      } else if (primaryTrigger.intervalDuration != null) {
-        deadline = primaryTrigger.lastConfirmedAt.add(primaryTrigger.intervalDuration!);
-      }
-    }
 
     return Scaffold(
       backgroundColor: Colors.grey[950],
@@ -157,57 +156,89 @@ class HomeScreen extends ConsumerWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // 1. 頂部狀態文字
-              Column(
-                children: [
-                  const SizedBox(height: 20),
-                  Text(
-                    hasActive ? '守護中' : '今天一切都好嗎？',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: hasActive ? Colors.greenAccent[400] : Colors.white,
-                    ),
+          child: hasActive
+              ? TriggerListView(activeTriggers: activeTriggers)
+              : const BrandIntroView(),
+        ),
+      ),
+      floatingActionButton: hasActive
+          ? _buildFloatingPresenceButton(context, ref, activeTriggers)
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    );
+  }
+
+  Widget _buildFloatingPresenceButton(BuildContext context, WidgetRef ref, List<Trigger> activeTriggers) {
+    return Container(
+      height: 58,
+      width: 200,
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(29),
+        gradient: const LinearGradient(
+          colors: [Colors.blueAccent, Colors.tealAccent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blueAccent.withOpacity(0.4),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(29),
+          onTap: () => _handlePresenceConfirmation(context, ref, activeTriggers),
+          child: const Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.check_circle_outline,
+                  size: 22,
+                  color: Colors.white,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  '我還在',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 1.5,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    hasActive ? '安心守護通知已啟用' : '目前尚未安排任何安心守護',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                ],
-              ),
-
-              // 2. 中央倒數計時器
-              if (hasActive && deadline != null)
-                CountdownDisplay(deadline: deadline)
-              else
-                const SizedBox(height: 100),
-
-              // 3. 大型主按鈕
-              Center(
-                child: hasActive
-                    ? _buildHugePresenceButton(context, ref, primaryTrigger!)
-                    : _buildCreateButton(context),
-              ),
-
-              const SizedBox(height: 40),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildHugePresenceButton(BuildContext context, WidgetRef ref, Trigger trigger) {
-    return GestureDetector(
-      onTap: () async {
-        // A. 播放信封收回動畫對話框
+  void _handlePresenceConfirmation(BuildContext context, WidgetRef ref, List<Trigger> activeTriggers) async {
+    final storage = ref.read(storageServiceProvider);
+    
+    // Look up recipient names for all active triggers
+    final recipientNames = activeTriggers.map((trigger) {
+      return trigger.recipientIds
+          .map((id) => storage.getRecipient(id)?.name ?? '未知收件人')
+          .join(', ');
+    }).toList();
+
+    // Show double confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => ConfirmAllDialog(recipientNames: recipientNames),
+    );
+
+    if (confirmed == true) {
+      if (context.mounted) {
+        // Play envelope retraction animation
         await showGeneralDialog(
           context: context,
           barrierDismissible: false,
@@ -217,90 +248,21 @@ class HomeScreen extends ConsumerWidget {
             return const RetractHandoverDialog();
           },
         );
+      }
 
-        // B. 動畫播放完畢後，正式呼叫 confirmSafe 寫入資料庫
-        await ref.read(activeTriggersProvider.notifier).confirmSafe(trigger.id);
-        
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('守護狀態已更新，防呆提醒已安全重置！'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      },
-      child: Container(
-        width: 220,
-        height: 220,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            colors: [Colors.blueAccent, Colors.tealAccent],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.blueAccent.withOpacity(0.4),
-              blurRadius: 30,
-              spreadRadius: 5,
-            ),
-          ],
-        ),
-        child: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.check_circle_outline,
-                size: 56,
-                color: Colors.white,
-              ),
-              SizedBox(height: 12),
-              Text(
-                '我還在',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 2,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+      // Execute confirmation database write and notification rescheduling
+      await ref.read(activeTriggersProvider.notifier).confirmAllSafe();
 
-  Widget _buildCreateButton(BuildContext context) {
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30),
-        ),
-        elevation: 8,
-      ),
-      onPressed: () {
-        context.push('/create');
-      },
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.add, size: 24),
-          SizedBox(width: 8),
-          Text(
-            '＋ 開始安排',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('所有守護任務已同步確認，提醒倒數已重置！'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
           ),
-        ],
-      ),
-    );
+        );
+      }
+    }
   }
 
   void _showRestoreDialog(BuildContext context, WidgetRef ref) {
