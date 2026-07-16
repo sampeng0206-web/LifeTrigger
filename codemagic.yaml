@@ -17,31 +17,26 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
-      - name: Debug App Store Connect Private Key Format
+      - name: Decode App Store Connect Private Key
         script: |
-          echo "=== APP_STORE_CONNECT_PRIVATE_KEY ==="
-          if [ -z "$APP_STORE_CONNECT_PRIVATE_KEY" ]; then
-            echo "Status: EMPTY"
-          else
-            echo "Length: ${#APP_STORE_CONNECT_PRIVATE_KEY} characters"
-            echo -n "Prefix: "
-            echo "$APP_STORE_CONNECT_PRIVATE_KEY" | head -c 30
-            echo ""
-            echo -n "Line Count: "
-            echo "$APP_STORE_CONNECT_PRIVATE_KEY" | wc -l
+          echo "Decoding APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY..."
+          if [ -z "$APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY" ]; then
+            echo "Error: APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY is empty!"
+            exit 1
           fi
 
-          echo "=== APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY ==="
-          if [ -z "$APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY" ]; then
-            echo "Status: EMPTY"
+          # Decode using Python 3 for robustness (handles whitespace/newlines/padding perfectly)
+          if command -v python3 >/dev/null 2>&1; then
+            DECODED_KEY=$(python3 -c "import base64, os; print(base64.b64decode(os.environ['APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY'].strip()).decode('utf-8'))")
           else
-            echo "Length: ${#APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY} characters"
-            echo -n "Prefix: "
-            echo "$APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY" | head -c 30
-            echo ""
-            echo -n "Line Count: "
-            echo "$APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY" | wc -l
+            DECODED_KEY=$(echo "$APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY" | tr -d '\r\n ' | openssl base64 -d)
           fi
+
+          # Persist the decoded PEM key to $CM_ENV as APP_STORE_CONNECT_PRIVATE_KEY
+          echo "APP_STORE_CONNECT_PRIVATE_KEY<<DELIMITER" >> $CM_ENV
+          echo "$DECODED_KEY" >> $CM_ENV
+          echo "DELIMITER" >> $CM_ENV
+          echo "Successfully decoded and exported private key to CM_ENV."
       - name: Disable Swift Package Manager
         script: flutter config --no-enable-swift-package-manager
       - name: Get Flutter packages
