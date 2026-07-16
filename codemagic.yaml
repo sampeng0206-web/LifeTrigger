@@ -37,7 +37,7 @@ workflows:
             <key>provisioningProfiles</key>
             <dict>
               <key>com.sampeng.lifetrigger</key>
-              <string>lifetrigger_appstore</string>
+              <string>LifeTrigger ios_app_store</string>
             </dict>
             <key>signingStyle</key>
             <string>manual</string>
