@@ -17,6 +17,31 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
+      - name: Debug App Store Connect Private Key Format
+        script: |
+          echo "=== APP_STORE_CONNECT_PRIVATE_KEY ==="
+          if [ -z "$APP_STORE_CONNECT_PRIVATE_KEY" ]; then
+            echo "Status: EMPTY"
+          else
+            echo "Length: ${#APP_STORE_CONNECT_PRIVATE_KEY} characters"
+            echo -n "Prefix: "
+            echo "$APP_STORE_CONNECT_PRIVATE_KEY" | head -c 30
+            echo ""
+            echo -n "Line Count: "
+            echo "$APP_STORE_CONNECT_PRIVATE_KEY" | wc -l
+          fi
+
+          echo "=== APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY ==="
+          if [ -z "$APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY" ]; then
+            echo "Status: EMPTY"
+          else
+            echo "Length: ${#APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY} characters"
+            echo -n "Prefix: "
+            echo "$APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY" | head -c 30
+            echo ""
+            echo -n "Line Count: "
+            echo "$APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY" | wc -l
+          fi
       - name: Disable Swift Package Manager
         script: flutter config --no-enable-swift-package-manager
       - name: Get Flutter packages
