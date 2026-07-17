@@ -214,12 +214,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         ],
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: hasActive
-              ? TriggerListView(activeTriggers: activeTriggers)
-              : const BrandIntroView(),
-        ),
+        child: hasActive
+            ? Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                child: TriggerListView(activeTriggers: activeTriggers),
+              )
+            : const BrandIntroView(),
       ),
       floatingActionButton: hasActive
           ? _buildFloatingPresenceButton(context, activeTriggers)
