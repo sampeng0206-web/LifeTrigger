@@ -211,6 +211,9 @@ class CloudSyncService {
       };
 
       final uri = Uri.parse('$baseUrl/api/triggers/send-local');
+      debugPrint('LOG: sendLocalTriggerEmail request url: $uri');
+      debugPrint('LOG: sendLocalTriggerEmail request payload: ${jsonEncode(body)}');
+
       final request = await client.postUrl(uri);
       
       request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
@@ -229,6 +232,57 @@ class CloudSyncService {
       return false;
     } catch (e) {
       debugPrint('ERROR: sendLocalTriggerEmail failed: $e');
+      return false;
+    } finally {
+      client.close();
+    }
+  }
+
+  /// 雲端模式下，同步通知 Worker 取消該守護任務
+  Future<bool> cancelCloudTrigger(String triggerId) async {
+    if (!isConfigured) {
+      debugPrint('WARNING: CloudSyncService: baseUrl is not configured. Bypassing cloud cancellation.');
+      return false;
+    }
+
+    final client = HttpClient();
+    client.connectionTimeout = const Duration(seconds: 10);
+
+    try {
+      final customerInfo = await Purchases.getCustomerInfo();
+      final userId = customerInfo.originalAppUserId;
+      if (userId.isEmpty) {
+        debugPrint('ERROR: CloudSyncService: RevenueCat User ID is empty. Cannot cancel cloud trigger.');
+        return false;
+      }
+
+      final body = {
+        'id': triggerId,
+        'user_id': userId,
+      };
+
+      final uri = Uri.parse('$baseUrl/api/triggers/cancel');
+      debugPrint('LOG: cancelCloudTrigger request url: $uri');
+      debugPrint('LOG: cancelCloudTrigger request payload: ${jsonEncode(body)}');
+
+      final request = await client.postUrl(uri);
+      
+      request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
+      request.headers.set('X-API-Key', apiAuthKey);
+      request.write(jsonEncode(body));
+
+      final response = await request.close();
+      final responseBody = await response.transform(utf8.decoder).join();
+
+      debugPrint('LOG: cancelCloudTrigger ID: $triggerId, response status: ${response.statusCode}, body: $responseBody');
+
+      if (response.statusCode == 200) {
+        final resJson = jsonDecode(responseBody);
+        return resJson['success'] == true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('ERROR: cancelCloudTrigger failed: $e');
       return false;
     } finally {
       client.close();

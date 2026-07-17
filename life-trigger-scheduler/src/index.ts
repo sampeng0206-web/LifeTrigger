@@ -158,25 +158,22 @@ async function processScheduledTriggers(env: Env): Promise<{ processed: number; 
 				}
 			}
 
-			// C. 發信
+			// C. 發信 (聯絡人)
 			const toList = trigger.recipient_emails.split(",").map(e => e.trim());
 			const { subject, bodyHtml } = generateEmailHtml(payloadText);
 
-			await sendEmail({
-				from: SENDER_EMAIL,
-				to: toList,
-				subject: subject,
-				body: bodyHtml
-			}, env);
-
-			// D. 寄信成功：狀態更新為 'delivered'
-			await env.DB.prepare(`
-				UPDATE cloud_triggers 
-				SET status = 'delivered', updated_at = ? 
-				WHERE id = ?
-			`).bind(new Date().toISOString(), trigger.id).run();
-			console.log(`${logPrefix} Email sent successfully. Status set to 'delivered'.`);
-			succeeded++;
+			let recipientEmailSuccess = false;
+			try {
+				await sendEmail({
+					from: SENDER_EMAIL,
+					to: toList,
+					subject: subject,
+					body: bodyHtml
+				}, env);
+				recipientEmailSuccess = true;
+			} catch (emailErr) {
+				console.error(`${logPrefix} Failed to send email to recipients:`, emailErr);
+			}
 
 			// E. 檢查並寄送使用者通知副本
 			let userEmail: string | undefined;
@@ -213,14 +210,33 @@ async function processScheduledTriggers(env: Env): Promise<{ processed: number; 
 					console.error(`${logPrefix} Failed to send backup email to ${userEmail}:`, backupErr);
 				}
 			}
+
+			// D. 更新資料庫最終狀態：若聯絡人寄件成功視為 delivered，否則設為 failed
+			if (recipientEmailSuccess) {
+				await env.DB.prepare(`
+					UPDATE cloud_triggers 
+					SET status = 'delivered', updated_at = ? 
+					WHERE id = ?
+				`).bind(new Date().toISOString(), trigger.id).run();
+				console.log(`${logPrefix} Email sent successfully. Status set to 'delivered'.`);
+				succeeded++;
+			} else {
+				await env.DB.prepare(`
+					UPDATE cloud_triggers 
+					SET status = 'failed', updated_at = ? 
+					WHERE id = ?
+				`).bind(new Date().toISOString(), trigger.id).run();
+				console.error(`${logPrefix} Recipient email failed. Status set to 'failed'.`);
+				failed++;
+			}
 		} catch (error: any) {
-			// E. 寄信失敗：狀態更新為 'failed'
+			// 處理其他意外錯誤
 			await env.DB.prepare(`
 				UPDATE cloud_triggers 
 				SET status = 'failed', updated_at = ? 
 				WHERE id = ?
 			`).bind(new Date().toISOString(), trigger.id).run();
-			console.error(`${logPrefix} Failed to send email. Status set to 'failed'. Error:`, error);
+			console.error(`${logPrefix} Unexpected error. Status set to 'failed'. Error:`, error);
 			failed++;
 		}
 	}
@@ -333,14 +349,21 @@ export default {
 					});
 					const { subject, bodyHtml } = generateEmailHtml(dummyPayload);
 
-					await sendEmail({
-						from: SENDER_EMAIL,
-						to: toList,
-						subject: subject,
-						body: bodyHtml
-					}, env);
+					let recipientSuccess = false;
+					try {
+						await sendEmail({
+							from: SENDER_EMAIL,
+							to: toList,
+							subject: subject,
+							body: bodyHtml
+						}, env);
+						recipientSuccess = true;
+					} catch (emailErr: any) {
+						console.error("Failed to send email to recipient:", emailErr);
+					}
 
 					// 2. 如果使用者填寫了備份 Email，額外寄送通知副本
+					let backupSuccess = false;
 					if (user_email && user_email.trim().length > 0) {
 						const triggerTime = new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
 						const backupSubject = "【萬一我消失】您的安心守護通知已觸發";
@@ -358,12 +381,55 @@ export default {
 								subject: backupSubject,
 								body: backupBody
 							}, env);
+							backupSuccess = true;
 						} catch (backupErr) {
 							console.error("Failed to send backup email copy:", backupErr);
 						}
 					}
 
-					return new Response(JSON.stringify({ success: true, message: "Local trigger emails sent successfully" }), {
+					if (recipientSuccess) {
+						return new Response(JSON.stringify({ success: true, message: "Local trigger emails sent successfully" }), {
+							status: 200,
+							headers: { "Content-Type": "application/json" }
+						});
+					} else {
+						return new Response(JSON.stringify({ 
+							error: "Recipient email failed", 
+							backup_status: backupSuccess ? "sent" : "failed" 
+						}), {
+							status: 500,
+							headers: { "Content-Type": "application/json" }
+						});
+					}
+				} catch (err: any) {
+					return new Response(JSON.stringify({ error: `Internal Server Error: ${err.message}` }), {
+						status: 500,
+						headers: { "Content-Type": "application/json" }
+					});
+				}
+			}
+
+			// POST /api/triggers/cancel: 雲端同步刪除/取消進行中的守護任務
+			if (url.pathname === "/api/triggers/cancel" && request.method === "POST") {
+				try {
+					const body: any = await request.json();
+					const { id, user_id } = body;
+
+					if (!id || !user_id) {
+						return new Response(JSON.stringify({ error: "Missing required fields" }), {
+							status: 400,
+							headers: { "Content-Type": "application/json" }
+						});
+					}
+
+					// 更新 D1 資料庫中對應任務的 status 為 cancelled 且 is_active 為 0
+					await env.DB.prepare(`
+						UPDATE cloud_triggers
+						SET status = 'cancelled', is_active = 0, updated_at = ?
+						WHERE id = ? AND user_id = ?
+					`).bind(new Date().toISOString(), id, user_id).run();
+
+					return new Response(JSON.stringify({ success: true, message: "Trigger cancelled successfully in cloud D1" }), {
 						status: 200,
 						headers: { "Content-Type": "application/json" }
 					});

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/trigger.dart';
 import '../services/storage_service.dart';
+import '../screens/home_screen.dart';
 
 class TriggerCard extends ConsumerStatefulWidget {
   final Trigger trigger;
@@ -64,6 +65,62 @@ class _TriggerCardState extends ConsumerState<TriggerCard> {
         _remaining = Duration.zero;
       }
     });
+  }
+
+  void _handleCancel(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          '取消確認',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          '確定要取消這個安心守護任務嗎？取消後將不再寄送通知。',
+          style: TextStyle(color: Color(0xFFCCCCCC), fontSize: 15, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              '確定取消',
+              style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final storage = ref.read(storageServiceProvider);
+      
+      final oldQuota = storage.getUserQuota().freeTriggersRemaining;
+      await storage.cancelTrigger(widget.trigger.id);
+      
+      // 重新整理首頁清單
+      ref.read(activeTriggersProvider.notifier).refresh();
+      
+      final newQuota = storage.getUserQuota().freeTriggersRemaining;
+      final refunded = newQuota > oldQuota;
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(refunded
+                ? '已取消任務，並已退還 1 次免費額度。'
+                : '已取消該安心守護任務！'),
+            backgroundColor: refunded ? Colors.green[700] : Colors.redAccent,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -171,21 +228,35 @@ class _TriggerCardState extends ConsumerState<TriggerCard> {
               ),
             ),
             
-            // Status Tag
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                statusText,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: statusColor,
+            // Status Tag & Cancel Button
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    statusText,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: statusColor,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 8),
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.grey, size: 20),
+                  onPressed: () => _handleCancel(context),
+                  tooltip: '取消守護任務',
+                ),
+              ],
             ),
           ],
         ),

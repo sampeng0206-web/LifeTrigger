@@ -110,8 +110,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       const SizedBox(height: 12),
                       Text(
                         '本服務本身不收集您的個人資訊、亦無須註冊帳號。'
-                        '您可於下方選填您個人的電子郵件，當您的安心守護通知被觸發時，'
-                        '系統將會額外發送一份通知信件副本至您的信箱。'
+                        '您可於下方選填您的通知副本電子郵件，當您的安心守護通知被觸發時，'
+                        '系統將會額外發送一份通知副本至您的信箱。'
                         '這能作為您確認系統是否正常運作的除錯與信任雙重保障。',
                         style: TextStyle(
                           fontSize: 14,
@@ -126,7 +126,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                 // Text field
                 const Text(
-                  '您的備用 Email (選填)',
+                  '您的通知副本 Email (選填)',
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
                 const SizedBox(height: 12),

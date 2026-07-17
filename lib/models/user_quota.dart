@@ -14,7 +14,7 @@ class UserQuota extends HiveObject {
   bool isCloudGuardianActive;
 
   UserQuota({
-    this.freeTriggersRemaining = 3,
+    this.freeTriggersRemaining = 1,
     this.isLocalUnlimited = false,
     this.isCloudGuardianActive = false,
   });

@@ -32,6 +32,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
   // Recipient state
   final _recipientNameController = TextEditingController();
   final _recipientEmailController = TextEditingController();
+  final _backupEmailController = TextEditingController();
   Relationship _selectedRelationship = Relationship.family;
 
   // Message and Shared memory
@@ -41,6 +42,14 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // 載入並同步通知副本 Email 至設定資料庫
+    final storage = ref.read(storageServiceProvider);
+    _backupEmailController.text = storage.getUserEmail() ?? '';
+    _backupEmailController.addListener(() {
+      storage.saveUserEmail(_backupEmailController.text.trim());
+    });
+
     // 異步背景重新整理 entitlements 訂閱狀態，確保方案資訊最新
     ref.read(purchaseServiceProvider).checkEntitlements().then((_) {
       if (mounted) {
@@ -54,6 +63,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
     _pageController.dispose();
     _recipientNameController.dispose();
     _recipientEmailController.dispose();
+    _backupEmailController.dispose();
     _messageController.dispose();
     _sharedMemoryController.dispose();
     super.dispose();
@@ -218,7 +228,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
             backgroundColor: Colors.grey[900],
             title: const Text('額度已達上限', style: TextStyle(color: Colors.white)),
             content: const Text(
-              '免費體驗版僅支援 3 次免費安排。若要啟用更多，請升級為安心版（買斷）或守護版（訂閱）。',
+              '免費體驗版僅支援 1 次免費安排。若要啟用更多，請升級為安心版（買斷）或守護版（訂閱）。',
               style: TextStyle(color: Colors.grey),
             ),
             actions: [
@@ -492,7 +502,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
       schemeLabel = '目前方案：安心版（本機解鎖，無限次建立）';
       schemeColor = Colors.blueAccent[200]!;
     } else {
-      schemeLabel = '目前方案：免費體驗版（剩餘 ${quota.freeTriggersRemaining}/3 次建立額度）';
+      schemeLabel = '目前方案：免費體驗版（剩餘 ${quota.freeTriggersRemaining}/1 次建立額度）';
       schemeColor = Colors.amberAccent[200]!;
     }
 
@@ -540,6 +550,19 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
               decoration: _buildInputDecoration('聯絡人 Email'),
               validator: (val) {
                 if (val == null || val.trim().isEmpty) return '請輸入聯絡人 Email';
+                if (!val.contains('@')) return '請輸入正確的 Email 格式';
+                return null;
+              },
+            ),
+            const SizedBox(height: 20),
+            TextFormField(
+              key: const Key('backup_email_field'),
+              controller: _backupEmailController,
+              style: const TextStyle(color: Colors.white),
+              keyboardType: TextInputType.emailAddress,
+              decoration: _buildInputDecoration('通知副本 Email (選填)'),
+              validator: (val) {
+                if (val == null || val.trim().isEmpty) return null; // 選填
                 if (!val.contains('@')) return '請輸入正確的 Email 格式';
                 return null;
               },

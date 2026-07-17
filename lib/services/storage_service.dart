@@ -73,7 +73,7 @@ class StorageService {
 
     // Initialize default UserQuota if empty
     if (_quotaBox.isEmpty) {
-      await _quotaBox.put('default', UserQuota(freeTriggersRemaining: 3));
+      await _quotaBox.put('default', UserQuota(freeTriggersRemaining: 1));
     }
   }
 
@@ -93,6 +93,10 @@ class StorageService {
 
   Future<void> saveTrigger(Trigger trigger) async {
     await _triggerBox.put(trigger.id, trigger);
+  }
+
+  Trigger? getTrigger(String id) {
+    return _triggerBox.get(id);
   }
 
   Future<void> saveRecipient(Recipient recipient) async {
@@ -316,6 +320,40 @@ class StorageService {
           }
         }
       }
+    }
+  }
+
+  Future<void> cancelTrigger(String triggerId) async {
+    final trigger = getTrigger(triggerId);
+    if (trigger == null) return;
+
+    trigger.status = TriggerStatus.cancelled;
+    trigger.isActive = false;
+    await saveTrigger(trigger);
+    debugPrint('LOG: Trigger $triggerId has been cancelled.');
+
+    // 額度退還規則：建立後 5 分鐘內刪除，退還 1 次免費額度（僅限免費版使用者）
+    final quota = getUserQuota();
+    final isFreeUser = !quota.isLocalUnlimited && !quota.isCloudGuardianActive;
+    if (isFreeUser) {
+      final now = DateTime.now();
+      final difference = now.difference(trigger.lastConfirmedAt);
+      if (difference.inMinutes < 5) {
+        quota.freeTriggersRemaining += 1;
+        if (quota.freeTriggersRemaining > 1) {
+          quota.freeTriggersRemaining = 1; // 限制免費額度上限為 1
+        }
+        await _quotaBox.put('default', quota);
+        debugPrint('LOG: Trigger cancelled within 5 minutes. 1 free trigger quota refunded.');
+      } else {
+        debugPrint('LOG: Trigger cancelled after 5 minutes. No quota refund.');
+      }
+    }
+
+    // 若為雲端模式，同步通知 Worker 更新狀態為 cancelled
+    if (trigger.requiresCloud) {
+      final cloudSync = _ref.read(cloudSyncServiceProvider);
+      await cloudSync.cancelCloudTrigger(triggerId);
     }
   }
 }

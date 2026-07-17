@@ -59,6 +59,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     
+    // 啟動時立即執行一次逾期檢查，免去 10 秒等待
+    _checkOverdueAndRefresh();
+
     // 每 10 秒自動檢查一次地端逾期狀態，並同步畫面
     _checkTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       _checkOverdueAndRefresh();

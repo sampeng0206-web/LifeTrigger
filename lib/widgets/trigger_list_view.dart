@@ -18,6 +18,22 @@ class TriggerListView extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 置頂精簡版標語
+        const Center(
+          child: Padding(
+            padding: EdgeInsets.only(bottom: 16.0),
+            child: Text(
+              '「有些話不說會遺憾」',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+                fontStyle: FontStyle.italic,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+        ),
         // Title block
         const Padding(
           padding: EdgeInsets.only(top: 8.0, bottom: 4.0),
