@@ -227,11 +227,28 @@ class CloudSyncService {
 
       if (response.statusCode == 200) {
         final resJson = jsonDecode(responseBody);
-        return resJson['success'] == true;
+        if (resJson['success'] == true) {
+          try {
+            await _ref.read(storageServiceProvider).clearLastError();
+          } catch (_) {}
+          return true;
+        } else {
+          final errorMsg = resJson['error'] ?? 'Unknown worker error';
+          try {
+            await _ref.read(storageServiceProvider).saveLastError('Worker Error: $errorMsg');
+          } catch (_) {}
+          return false;
+        }
       }
+      try {
+        await _ref.read(storageServiceProvider).saveLastError('HTTP Error ${response.statusCode}: $responseBody');
+      } catch (_) {}
       return false;
     } catch (e) {
       debugPrint('ERROR: sendLocalTriggerEmail failed: $e');
+      try {
+        await _ref.read(storageServiceProvider).saveLastError('Network Error: $e');
+      } catch (_) {}
       return false;
     } finally {
       client.close();

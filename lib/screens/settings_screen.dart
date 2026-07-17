@@ -13,6 +13,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   bool _isSaving = false;
+  String? _lastError;
 
   @override
   void initState() {
@@ -24,6 +25,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final storage = ref.read(storageServiceProvider);
     final email = storage.getUserEmail() ?? '';
     _emailController.text = email;
+    _lastError = storage.getLastError();
   }
 
   @override
@@ -190,6 +192,52 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                 ),
+                if (_lastError != null) ...[
+                  const SizedBox(height: 40),
+                  const Divider(color: Colors.grey),
+                  const SizedBox(height: 20),
+                  const Text(
+                    '系統診斷日誌 (除錯專用)',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.redAccent),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SelectableText(
+                          _lastError!,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton(
+                          onPressed: () async {
+                            final storage = ref.read(storageServiceProvider);
+                            await storage.clearLastError();
+                            setState(() {
+                              _lastError = null;
+                            });
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.grey[700]!),
+                            foregroundColor: Colors.grey[400],
+                          ),
+                          child: const Text('清除診斷日誌'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

@@ -240,6 +240,18 @@ class StorageService {
     await _settingsBox.put('user_email', email);
   }
 
+  String? getLastError() {
+    return _settingsBox.get('last_error');
+  }
+
+  Future<void> saveLastError(String error) async {
+    await _settingsBox.put('last_error', error);
+  }
+
+  Future<void> clearLastError() async {
+    await _settingsBox.delete('last_error');
+  }
+
   Future<void> checkOverdueTriggers() async {
     final now = DateTime.now();
     final cloudSync = _ref.read(cloudSyncServiceProvider);
@@ -285,6 +297,7 @@ class StorageService {
             debugPrint('LOG: Local Trigger ${trigger.id} is overdue. Sending email.');
             
             // 立即變更狀態為 triggered 並存入 Hive 鎖定，防止非同步二次重入重複寄信
+            final originalStatus = trigger.status;
             trigger.status = TriggerStatus.triggered;
             trigger.triggeredAt = now;
             await saveTrigger(trigger);
@@ -304,13 +317,14 @@ class StorageService {
               await saveTrigger(trigger);
               debugPrint('LOG: Local Trigger ${trigger.id} email delivered successfully.');
             } else {
-              trigger.status = TriggerStatus.failed;
-              trigger.failureReason = FailureReason.sendFailed;
-              trigger.isActive = false; // 任務關閉
+              // 寄信失敗，還原狀態與觸發時間，保持任務為 Active 以供後續自動/手動重試
+              trigger.status = originalStatus;
+              trigger.triggeredAt = null;
               await saveTrigger(trigger);
-              debugPrint('ERROR: Local Trigger ${trigger.id} email sending failed.');
+              debugPrint('ERROR: Local Trigger ${trigger.id} email sending failed. Reverted status to $originalStatus.');
             }
-          } else {
+          }
+ else {
             // 無收件人信箱
             trigger.status = TriggerStatus.failed;
             trigger.failureReason = FailureReason.sendFailed;
