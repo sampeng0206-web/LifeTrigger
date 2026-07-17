@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -43,11 +44,50 @@ class ActiveTriggersNotifier extends StateNotifier<List<Trigger>> {
   }
 }
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
+  Timer? _checkTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    
+    // 每 10 秒自動檢查一次地端逾期狀態，並同步畫面
+    _checkTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _checkOverdueAndRefresh();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _checkTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkOverdueAndRefresh();
+    }
+  }
+
+  Future<void> _checkOverdueAndRefresh() async {
+    await ref.read(storageServiceProvider).checkOverdueTriggers();
+    if (mounted) {
+      ref.read(activeTriggersProvider.notifier).refresh();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final activeTriggers = ref.watch(activeTriggersProvider);
     final hasActive = activeTriggers.isNotEmpty;
 
@@ -61,7 +101,7 @@ class HomeScreen extends ConsumerWidget {
         if (storage.getAllTriggers().isEmpty) {
           final quota = storage.getUserQuota();
           if (quota.isCloudGuardianActive) {
-            _showRestoreDialog(context, ref);
+            _showRestoreDialog(context);
           }
         }
       }
@@ -83,6 +123,23 @@ class HomeScreen extends ConsumerWidget {
                   title: const Text('設定與說明', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   children: [
+                    SimpleDialogOption(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        context.push('/settings');
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+                        child: Row(
+                          children: const [
+                            Icon(Icons.person_outline, color: Colors.blueAccent),
+                            SizedBox(width: 12),
+                            Text('個人安全設定', style: TextStyle(color: Colors.white, fontSize: 14)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Divider(color: Colors.grey[800], height: 1),
                     SimpleDialogOption(
                       onPressed: () {
                         Navigator.pop(context);
@@ -120,7 +177,7 @@ class HomeScreen extends ConsumerWidget {
                     SimpleDialogOption(
                       onPressed: () {
                         Navigator.pop(context);
-                        _triggerManualRestore(context, ref);
+                        _triggerManualRestore(context);
                       },
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
@@ -162,13 +219,13 @@ class HomeScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: hasActive
-          ? _buildFloatingPresenceButton(context, ref, activeTriggers)
+          ? _buildFloatingPresenceButton(context, activeTriggers)
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
-  Widget _buildFloatingPresenceButton(BuildContext context, WidgetRef ref, List<Trigger> activeTriggers) {
+  Widget _buildFloatingPresenceButton(BuildContext context, List<Trigger> activeTriggers) {
     return Container(
       height: 58,
       width: 200,
@@ -192,7 +249,7 @@ class HomeScreen extends ConsumerWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(29),
-          onTap: () => _handlePresenceConfirmation(context, ref, activeTriggers),
+          onTap: () => _handlePresenceConfirmation(context, activeTriggers),
           child: const Center(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -220,7 +277,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  void _handlePresenceConfirmation(BuildContext context, WidgetRef ref, List<Trigger> activeTriggers) async {
+  void _handlePresenceConfirmation(BuildContext context, List<Trigger> activeTriggers) async {
     final storage = ref.read(storageServiceProvider);
     
     // Look up recipient names for all active triggers
@@ -265,7 +322,7 @@ class HomeScreen extends ConsumerWidget {
     }
   }
 
-  void _showRestoreDialog(BuildContext context, WidgetRef ref) {
+  void _showRestoreDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -283,7 +340,7 @@ class HomeScreen extends ConsumerWidget {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              _performRestore(context, ref);
+              _performRestore(context);
             },
             child: const Text('立即還原', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
           ),
@@ -292,7 +349,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _triggerManualRestore(BuildContext context, WidgetRef ref) async {
+  Future<void> _triggerManualRestore(BuildContext context) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -330,10 +387,10 @@ class HomeScreen extends ConsumerWidget {
       return;
     }
 
-    _performRestore(context, ref);
+    _performRestore(context);
   }
 
-  Future<void> _performRestore(BuildContext context, WidgetRef ref) async {
+  Future<void> _performRestore(BuildContext context) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -354,24 +411,32 @@ class HomeScreen extends ConsumerWidget {
     );
 
     final syncService = ref.read(cloudSyncServiceProvider);
-    final cloudTriggers = await syncService.restoreCloudTriggers();
+    
+    // 加入 12 秒連線超時機制
+    final cloudTriggers = await syncService.restoreCloudTriggers().timeout(
+      const Duration(seconds: 12),
+      onTimeout: () {
+        debugPrint('TIMEOUT: restoreCloudTriggers timed out.');
+        return null;
+      },
+    );
 
     if (context.mounted) {
       Navigator.pop(context); // 關閉 loading
     }
 
     if (cloudTriggers == null) {
-      _showResultDialog(context, '讀取失敗', '無法連線至雲端伺服器，請檢查網路連線。');
+      _showResultDialog(context, '還原失敗', '讀取超時或連線失敗。請確認您的網路連線，或稍後再試。');
       return;
     }
 
     if (cloudTriggers.isEmpty) {
-      _showResultDialog(context, '無雲端資料', '您的帳號目前沒有任何儲存於雲端的守護紀錄。');
+      _showResultDialog(context, '無雲端資料', '目前沒有可還原的雲端守護紀錄。');
       return;
     }
 
     // 顯示雲端 Trigger 列表供使用者選擇
-    _showSelectTriggersDialog(context, ref, cloudTriggers);
+    _showSelectTriggersDialog(context, cloudTriggers);
   }
 
   void _showResultDialog(BuildContext context, String title, String content) {
@@ -392,7 +457,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   void _showSelectTriggersDialog(
-      BuildContext context, WidgetRef ref, List<Map<String, dynamic>> cloudTriggers) {
+      BuildContext context, List<Map<String, dynamic>> cloudTriggers) {
     final selectedStates = List<bool>.generate(cloudTriggers.length, (index) => true);
 
     showDialog(

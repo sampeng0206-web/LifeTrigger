@@ -50,13 +50,17 @@ class CloudSyncService {
         return false;
       }
 
-      // 2. 彙整收件人 Email (多個以逗號隔開)
+      // 2. 彙整收件人 Email (多個以逗號隔開) 與姓名
       final storage = _ref.read(storageServiceProvider);
       final emails = <String>[];
+      final names = <String>[];
       for (var rId in trigger.recipientIds) {
         final recipient = storage.getRecipient(rId);
-        if (recipient != null && recipient.email.isNotEmpty) {
-          emails.add(recipient.email.trim());
+        if (recipient != null) {
+          if (recipient.email.isNotEmpty) {
+            emails.add(recipient.email.trim());
+          }
+          names.add(recipient.name.trim());
         }
       }
 
@@ -64,6 +68,8 @@ class CloudSyncService {
         debugPrint('ERROR: CloudSyncService: No recipient emails found.');
         return false;
       }
+
+      final userEmail = storage.getUserEmail();
 
       // 3. 計算截止期限
       DateTime deadline;
@@ -99,6 +105,8 @@ class CloudSyncService {
         'payload': {
           'message': trigger.message,
           'shared_memory': trigger.sharedMemoryPrompt,
+          'user_email': userEmail,
+          'recipient_names': names.join(', '),
         }
       };
 
@@ -171,6 +179,57 @@ class CloudSyncService {
     } catch (e) {
       debugPrint('ERROR: CloudSyncService restore failed: $e');
       return null;
+    } finally {
+      client.close();
+    }
+  }
+
+  /// 地端觸發逾期時，發送 API 請求給 Cloudflare Worker 以寄信
+  Future<bool> sendLocalTriggerEmail({
+    required String triggerId,
+    required String recipientEmails,
+    required String message,
+    required String sharedMemory,
+    String? userEmail,
+    required String recipientNames,
+  }) async {
+    if (!isConfigured) {
+      debugPrint('WARNING: CloudSyncService: baseUrl is not configured. Bypassing sendLocalTriggerEmail.');
+      return false;
+    }
+
+    final client = HttpClient();
+    client.connectionTimeout = const Duration(seconds: 15);
+
+    try {
+      final body = {
+        'recipient_emails': recipientEmails,
+        'message': message,
+        'shared_memory': sharedMemory,
+        'user_email': userEmail,
+        'recipient_names': recipientNames,
+      };
+
+      final uri = Uri.parse('$baseUrl/api/triggers/send-local');
+      final request = await client.postUrl(uri);
+      
+      request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
+      request.headers.set('X-API-Key', apiAuthKey);
+      request.write(jsonEncode(body));
+
+      final response = await request.close();
+      final responseBody = await response.transform(utf8.decoder).join();
+
+      debugPrint('LOG: sendLocalTriggerEmail response status: ${response.statusCode}, body: $responseBody');
+
+      if (response.statusCode == 200) {
+        final resJson = jsonDecode(responseBody);
+        return resJson['success'] == true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('ERROR: sendLocalTriggerEmail failed: $e');
+      return false;
     } finally {
       client.close();
     }

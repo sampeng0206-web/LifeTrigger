@@ -176,6 +176,41 @@ async function processScheduledTriggers(env: Env): Promise<{ processed: number; 
 			`).bind(new Date().toISOString(), trigger.id).run();
 			console.log(`${logPrefix} Email sent successfully. Status set to 'delivered'.`);
 			succeeded++;
+
+			// E. 檢查並寄送使用者通知副本
+			let userEmail: string | undefined;
+			let recipientNames: string | undefined;
+			try {
+				const parsed = JSON.parse(payloadText);
+				if (parsed && typeof parsed === "object") {
+					userEmail = parsed.user_email;
+					recipientNames = parsed.recipient_names;
+				}
+			} catch (e) {
+				// 忽略解析錯誤
+			}
+
+			if (userEmail && userEmail.trim().length > 0) {
+				const triggerTime = new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
+				const backupSubject = "【萬一我消失】您的安心守護通知已觸發";
+				const backupBody = `
+					<div style="font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; background-color: #ffffff;">
+						<h2 style="color: #1a1a1a; margin-top: 0; font-size: 20px;">🛡️ 安心守護 — 副本通知</h2>
+						<p style="color: #111; font-size: 15px;">您設定的安心守護通知已於 <strong>${triggerTime}</strong> 觸發，系統已將通知信件寄送給以下對象：<strong>${recipientNames || trigger.recipient_emails}</strong>。</p>
+						<p style="color: #ff3b30; font-weight: bold; font-size: 14px; margin-top: 20px;">如果這不是您預期的情況，請盡快確認您的守護任務設定。</p>
+					</div>
+				`;
+				try {
+					await sendEmail({
+						to: [userEmail.trim()],
+						subject: backupSubject,
+						body: backupBody
+					}, env);
+					console.log(`${logPrefix} Backup copy sent successfully to ${userEmail}.`);
+				} catch (backupErr) {
+					console.error(`${logPrefix} Failed to send backup email to ${userEmail}:`, backupErr);
+				}
+			}
 		} catch (error: any) {
 			// E. 寄信失敗：狀態更新為 'failed'
 			await env.DB.prepare(`
@@ -264,6 +299,67 @@ export default {
 					).run();
 
 					return new Response(JSON.stringify({ success: true, message: "Trigger saved successfully" }), {
+						status: 200,
+						headers: { "Content-Type": "application/json" }
+					});
+				} catch (err: any) {
+					return new Response(JSON.stringify({ error: `Internal Server Error: ${err.message}` }), {
+						status: 500,
+						headers: { "Content-Type": "application/json" }
+					});
+				}
+			}
+
+			// POST /api/triggers/send-local: 地端觸發補寄電子郵件
+			if (url.pathname === "/api/triggers/send-local" && request.method === "POST") {
+				try {
+					const body: any = await request.json();
+					const { recipient_emails, message, shared_memory, user_email, recipient_names } = body;
+
+					if (!recipient_emails || !message) {
+						return new Response(JSON.stringify({ error: "Missing required fields" }), {
+							status: 400,
+							headers: { "Content-Type": "application/json" }
+						});
+					}
+
+					// 1. 寄信給聯絡人
+					const toList = recipient_emails.split(",").map((e: string) => e.trim());
+					const dummyPayload = JSON.stringify({
+						message: message,
+						shared_memory: shared_memory || ""
+					});
+					const { subject, bodyHtml } = generateEmailHtml(dummyPayload);
+
+					await sendEmail({
+						to: toList,
+						subject: subject,
+						body: bodyHtml
+					}, env);
+
+					// 2. 如果使用者填寫了備份 Email，額外寄送通知副本
+					if (user_email && user_email.trim().length > 0) {
+						const triggerTime = new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
+						const backupSubject = "【萬一我消失】您的安心守護通知已觸發";
+						const backupBody = `
+							<div style="font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; background-color: #ffffff;">
+								<h2 style="color: #1a1a1a; margin-top: 0; font-size: 20px;">🛡️ 安心守護 — 副本通知</h2>
+								<p style="color: #111; font-size: 15px;">您設定的安心守護通知已於 <strong>${triggerTime}</strong> 觸發，系統已將通知信件寄送給以下對象：<strong>${recipient_names || recipient_emails}</strong>。</p>
+								<p style="color: #ff3b30; font-weight: bold; font-size: 14px; margin-top: 20px;">如果這不是您預期的情況，請盡快確認您的守護任務設定。</p>
+							</div>
+						`;
+						try {
+							await sendEmail({
+								to: [user_email.trim()],
+								subject: backupSubject,
+								body: backupBody
+							}, env);
+						} catch (backupErr) {
+							console.error("Failed to send backup email copy:", backupErr);
+						}
+					}
+
+					return new Response(JSON.stringify({ success: true, message: "Local trigger emails sent successfully" }), {
 						status: 200,
 						headers: { "Content-Type": "application/json" }
 					});

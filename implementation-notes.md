@@ -71,6 +71,11 @@
 2. **RevenueCat 模擬購買與本地 Hive 同步**：實作了 `PurchaseService` 進行 Offering 撈取與 CustomerInfo 狀態同步，並在 `kDebugMode` 下整合了 `_simulatePurchase` 模擬購買邏輯。經手動 `verify_hive_manual.dart` 驗證，模擬購買安心版能正確將 `isLocalUnlimited` 改寫為 `true` 並持久化寫入本地 Hive 資料庫 `user_quotas.hive`。
 3. **AdMob 廣告投放與付費隱藏**：在 `HelpTermsScreen` 與 `SuccessScreen` 底部嵌入 AdMob BannerAd，指定 `nonPersonalizedAds: true` 載入非個人化廣告。當偵測到使用者已付費（安心版或守護版已啟用）時，自動將 BannerAd 隱藏並不進行廣告載入，節省資源。
 
+### Week 6 (2026-07-17)
+1. **調整最小時間單位下限與防呆警語**：
+   - 經與使用者拍板決定，將守護確認時間的最小時間單位下限從 1 小時下修至 5 分鐘。
+   - 為了防範過短時間造成誤觸或系統排程漏失風險，當設定的間隔時間低於 30 分鐘時，系統必須彈出一個誠實告知純地端模式技術限制的警告對話框。使用者必須點擊確認後才能繼續建立。這有助於在高風險的短暫場景中提供更靈活的配置，同時維持使用者對技術局限性的明確認知。
+
 ---
 
 ## 偏離

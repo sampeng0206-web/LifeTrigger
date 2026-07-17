@@ -44,6 +44,7 @@ class StorageService {
   late Box<Trigger> _triggerBox;
   late Box<Recipient> _recipientBox;
   late Box<UserQuota> _quotaBox;
+  late Box<String> _settingsBox;
   
   // Callback for retract handover UI animation
   VoidCallback? onRetractHandoverAnimation;
@@ -68,6 +69,7 @@ class StorageService {
     _triggerBox = await Hive.openBox<Trigger>('triggers');
     _recipientBox = await Hive.openBox<Recipient>('recipients');
     _quotaBox = await Hive.openBox<UserQuota>('user_quotas');
+    _settingsBox = await Hive.openBox<String>('settings');
 
     // Initialize default UserQuota if empty
     if (_quotaBox.isEmpty) {
@@ -226,17 +228,29 @@ class StorageService {
     }
   }
 
+  String? getUserEmail() {
+    return _settingsBox.get('user_email');
+  }
+
+  Future<void> saveUserEmail(String email) async {
+    await _settingsBox.put('user_email', email);
+  }
+
   Future<void> checkOverdueTriggers() async {
     final now = DateTime.now();
+    final cloudSync = _ref.read(cloudSyncServiceProvider);
+    final userEmail = getUserEmail();
+
     for (var trigger in _triggerBox.values) {
       if (!trigger.isActive) continue;
       
+      // 冪等性防護：只處理狀態為 waiting 或 reminderSent 且已超時的 Trigger
       final isCountingDown = trigger.status == TriggerStatus.waiting ||
           trigger.status == TriggerStatus.reminderSent;
       
       if (!isCountingDown) continue;
 
-      // Calculate deadline
+      // 計算截止期限
       DateTime? deadline;
       if (trigger.mode == TriggerMode.scheduledDate) {
         deadline = trigger.scheduledDeadline;
@@ -245,14 +259,61 @@ class StorageService {
       }
 
       if (deadline != null && now.isAfter(deadline)) {
-        trigger.status = TriggerStatus.triggered;
-        trigger.triggeredAt = now;
-        await saveTrigger(trigger);
-
-        debugPrint('LOG: Trigger ${trigger.id} 應觸發但尚未串接寄送');
-
         if (trigger.requiresCloud) {
-          debugPrint('WARNING: Trigger ${trigger.id} 為長天期任務（requiresCloud=true），但在地端被標記逾期，跳過處理。');
+          // 雲端排程任務由 Cloudflare Worker Cron 處理，本地僅標記為已觸發
+          trigger.status = TriggerStatus.triggered;
+          trigger.triggeredAt = now;
+          await saveTrigger(trigger);
+          debugPrint('LOG: Cloud Trigger ${trigger.id} is overdue. Status marked to triggered locally.');
+        } else {
+          // 純地端任務：立即啟動補寄信件流程
+          final emails = <String>[];
+          final names = <String>[];
+          for (var rId in trigger.recipientIds) {
+            final recipient = getRecipient(rId);
+            if (recipient != null && recipient.email.isNotEmpty) {
+              emails.add(recipient.email.trim());
+              names.add(recipient.name.trim());
+            }
+          }
+
+          if (emails.isNotEmpty) {
+            debugPrint('LOG: Local Trigger ${trigger.id} is overdue. Sending email.');
+            
+            // 立即變更狀態為 triggered 並存入 Hive 鎖定，防止非同步二次重入重複寄信
+            trigger.status = TriggerStatus.triggered;
+            trigger.triggeredAt = now;
+            await saveTrigger(trigger);
+
+            final success = await cloudSync.sendLocalTriggerEmail(
+              triggerId: trigger.id,
+              recipientEmails: emails.join(','),
+              message: trigger.message,
+              sharedMemory: trigger.sharedMemoryPrompt,
+              userEmail: userEmail,
+              recipientNames: names.join(', '),
+            );
+
+            if (success) {
+              trigger.status = TriggerStatus.delivered;
+              trigger.isActive = false; // 任務結束
+              await saveTrigger(trigger);
+              debugPrint('LOG: Local Trigger ${trigger.id} email delivered successfully.');
+            } else {
+              trigger.status = TriggerStatus.failed;
+              trigger.failureReason = FailureReason.sendFailed;
+              trigger.isActive = false; // 任務關閉
+              await saveTrigger(trigger);
+              debugPrint('ERROR: Local Trigger ${trigger.id} email sending failed.');
+            }
+          } else {
+            // 無收件人信箱
+            trigger.status = TriggerStatus.failed;
+            trigger.failureReason = FailureReason.sendFailed;
+            trigger.isActive = false;
+            await saveTrigger(trigger);
+            debugPrint('ERROR: Local Trigger ${trigger.id} has no recipient emails.');
+          }
         }
       }
     }

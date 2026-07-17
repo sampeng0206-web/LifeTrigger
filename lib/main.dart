@@ -7,6 +7,7 @@ import 'screens/create_trigger_screen.dart';
 import 'screens/purchase_screen.dart';
 import 'screens/success_screen.dart';
 import 'screens/help_terms_screen.dart';
+import 'screens/settings_screen.dart';
 import 'services/storage_service.dart';
 import 'services/notification_service.dart';
 import 'services/purchase_service.dart';
@@ -71,6 +72,10 @@ final _router = GoRouter(
     GoRoute(
       path: '/help',
       builder: (context, state) => const HelpTermsScreen(),
+    ),
+    GoRoute(
+      path: '/settings',
+      builder: (context, state) => const SettingsScreen(),
     ),
   ],
 );

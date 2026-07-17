@@ -7,6 +7,7 @@ import '../services/purchase_service.dart';
 import '../models/trigger.dart';
 import '../models/recipient.dart';
 import 'home_screen.dart';
+import 'purchase_screen.dart';
 
 class CreateTriggerScreen extends ConsumerStatefulWidget {
   const CreateTriggerScreen({super.key});
@@ -26,6 +27,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
   // Time setting state (default 24 hours)
   int _selectedHours = 24;
   int _selectedMinutes = 0;
+  int _activeTab = 0; // 0: 短期安排, 1: 長期守護
 
   // Recipient state
   final _recipientNameController = TextEditingController();
@@ -35,6 +37,17 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
   // Message and Shared memory
   final _messageController = TextEditingController();
   final _sharedMemoryController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // 異步背景重新整理 entitlements 訂閱狀態，確保方案資訊最新
+    ref.read(purchaseServiceProvider).checkEntitlements().then((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -65,8 +78,8 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
     } else if (_currentStep == 1) {
       if (_formKey2.currentState!.validate()) {
         final duration = _getSelectedDuration();
-        if (duration < const Duration(hours: 1)) {
-          _showErrorDialog('確認時間間隔不得低於 1 小時，這是出於安全考量的基本限制。');
+        if (duration < const Duration(minutes: 5)) {
+          _showErrorDialog('確認時間間隔不得低於 5 分鐘，這是出於安全考量的基本限制。');
           return;
         }
 
@@ -92,19 +105,56 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
         final quota = ref.read(storageServiceProvider).getUserQuota();
         final hasCloudGuardian = quota.isCloudGuardianActive;
 
-        if (hasCloudGuardian) {
+        if (_activeTab == 1 && !hasCloudGuardian) {
+          _showErrorDialog('使用「長期守護」必須啟用守護版權限。');
+          return;
+        }
+
+        if (_activeTab == 1) {
           if (duration > const Duration(days: 365)) {
-            _showErrorDialog('自訂時間間隔最長不得超過 365 天。');
+            _showErrorDialog('長期守護自訂時間最長不得超過 365 天。');
             return;
           }
         } else {
           if (duration > const Duration(days: 7)) {
-            _showErrorDialog(
-              '本守護天期目前最長支援 7 天。更長的天期（超過 7 天至 365 天）需要搭配雲端備份服務，此功能將於後續更新版本中推出。'
-            );
+            _showErrorDialog('短期安排自訂時間最長不得超過 7 天。');
             return;
           }
         }
+
+        // 當設定時間低於 30 分鐘時彈出警語確認
+        if (duration < const Duration(minutes: 30)) {
+          final confirmProceed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: Colors.grey[900],
+              title: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.amber),
+                  SizedBox(width: 8),
+                  Text('安全限制確認', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: const Text(
+                '此時間相當短，若您在期間內因故無法重新開啟App確認，通知仍可能無法即時送達，請確保您了解此為盡力服務，不保證所有情境下都能即時完成通知。',
+                style: TextStyle(color: Colors.grey, height: 1.5),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('返回修改', style: TextStyle(color: Colors.grey)),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('我瞭解並確認', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          );
+
+          if (confirmProceed != true) return;
+        }
+
         _nextPage();
       }
     } else if (_currentStep == 2) {
@@ -346,22 +396,31 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
             )
           else
             const SizedBox(),
-          ElevatedButton(
-            key: const Key('next_button'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _currentStep == 3 ? Colors.greenAccent[700] : Colors.blueAccent,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 4,
-            ),
-            onPressed: _onNextPressed,
-            child: Text(
-              _currentStep == 3 ? '啟動安心守護' : '下一步',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
+          Builder(
+            builder: (context) {
+              final quota = ref.watch(storageServiceProvider).getUserQuota();
+              final isNextDisabled = _currentStep == 1 && _activeTab == 1 && !quota.isCloudGuardianActive;
+
+              return ElevatedButton(
+                key: const Key('next_button'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isNextDisabled
+                      ? Colors.grey[800]
+                      : (_currentStep == 3 ? Colors.greenAccent[700] : Colors.blueAccent),
+                  foregroundColor: isNextDisabled ? Colors.grey[500] : Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: isNextDisabled ? 0 : 4,
+                ),
+                onPressed: isNextDisabled ? null : _onNextPressed,
+                child: Text(
+                  _currentStep == 3 ? '啟動安心守護' : '下一步',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -421,6 +480,22 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
 
   // 第 2 步：怎麼通知？
   Widget _buildStep2() {
+    final storage = ref.read(storageServiceProvider);
+    final quota = storage.getUserQuota();
+    
+    String schemeLabel = '';
+    Color schemeColor = Colors.grey;
+    if (quota.isCloudGuardianActive) {
+      schemeLabel = '目前方案：守護版（雲端守護，無限次建立）';
+      schemeColor = Colors.tealAccent[400]!;
+    } else if (quota.isLocalUnlimited) {
+      schemeLabel = '目前方案：安心版（本機解鎖，無限次建立）';
+      schemeColor = Colors.blueAccent[200]!;
+    } else {
+      schemeLabel = '目前方案：免費體驗版（剩餘 ${quota.freeTriggersRemaining}/3 次建立額度）';
+      schemeColor = Colors.amberAccent[200]!;
+    }
+
     return Form(
       key: _formKey2,
       child: SingleChildScrollView(
@@ -428,6 +503,25 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 方案狀態標籤
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: schemeColor.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: schemeColor.withOpacity(0.3), width: 1),
+              ),
+              child: Text(
+                schemeLabel,
+                style: TextStyle(
+                  color: schemeColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ),
             const Text(
               '第二步：怎麼通知？',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
@@ -455,35 +549,153 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
               '確認安全狀態時間間隔',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
             ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildQuickTimeButton('24 小時', 24),
-                _buildQuickTimeButton('72 小時', 72),
-                _buildQuickTimeButton('7 天', 168),
-              ],
-            ),
             const SizedBox(height: 16),
+            
+            // 分頁籤
             Row(
               children: [
                 Expanded(
-                  child: _buildTimeInputField(
-                    label: '小時',
-                    value: _selectedHours,
-                    onChanged: (val) => setState(() => _selectedHours = val ?? 0),
-                  ),
+                  child: _buildTabButton('短期安排', 0),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: _buildTimeInputField(
-                    label: '分鐘',
-                    value: _selectedMinutes,
-                    onChanged: (val) => setState(() => _selectedMinutes = val ?? 0),
-                  ),
+                  child: _buildTabButton('長期守護', 1),
                 ),
               ],
             ),
+            const SizedBox(height: 20),
+
+            // 依分頁籤與權限顯示內容
+            if (_activeTab == 0) ...[
+              // 短期安排內容
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildQuickTimeButton('24 小時', 24),
+                  _buildQuickTimeButton('72 小時', 72),
+                  _buildQuickTimeButton('7 天', 168),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildTimeInputField(
+                      label: '小時',
+                      value: _selectedHours,
+                      onChanged: (val) => setState(() => _selectedHours = val ?? 0),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildTimeInputField(
+                      label: '分鐘',
+                      value: _selectedMinutes,
+                      onChanged: (val) => setState(() => _selectedMinutes = val ?? 0),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '※ 短期安排支援最長 7 天（168 小時），下限 5 分鐘。',
+                style: TextStyle(color: Colors.grey[500], fontSize: 12),
+              ),
+            ] else ...[
+              // 長期守護分頁
+              if (quota.isCloudGuardianActive) ...[
+                // 已訂閱，可直接使用
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildQuickTimeButton('7 天', 168),
+                    _buildQuickTimeButton('30 天', 720),
+                    _buildQuickTimeButton('90 天', 2160),
+                    _buildQuickTimeButton('365 天', 8760),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTimeInputField(
+                        label: '小時',
+                        value: _selectedHours,
+                        onChanged: (val) => setState(() => _selectedHours = val ?? 0),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildTimeInputField(
+                        label: '分鐘',
+                        value: _selectedMinutes,
+                        onChanged: (val) => setState(() => _selectedMinutes = val ?? 0),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '※ 長期守護支援最長 365 天（8760 小時），下限 5 分鐘。',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                ),
+              ] else ...[
+                // 未訂閱，顯示方案差異比較卡片
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF111E2E), // 深藍底色
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.blueAccent.withOpacity(0.3), width: 1.5),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: const [
+                          Icon(Icons.cloud_queue_outlined, color: Colors.tealAccent, size: 22),
+                          SizedBox(width: 8),
+                          Text(
+                            '「長期守護」專屬服務差異',
+                            style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _buildComparisonRow('守護天期', '最長 7 天', '最長 365 天'),
+                      const Divider(color: Colors.grey, height: 20, thickness: 0.5),
+                      _buildComparisonRow('保管方式', '手機本地資料', '雲端安全備份'),
+                      const Divider(color: Colors.grey, height: 20, thickness: 0.5),
+                      _buildComparisonRow('手機損毀', '無法發送通知', '雲端排程自動送達'),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const PurchaseScreen()),
+                            );
+                            // 返回後重新整理 entitlements 狀態
+                            setState(() {});
+                          },
+                          child: const Text('立即開通守護版', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ],
         ),
       ),
@@ -716,5 +928,71 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
       case Relationship.other:
         return '其他';
     }
+  }
+
+  Widget _buildTabButton(String label, int index) {
+    final isSelected = _activeTab == index;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _activeTab = index;
+          if (index == 0) {
+            _selectedHours = 24;
+            _selectedMinutes = 0;
+          } else {
+            _selectedHours = 720; // 30天 (720 小時)
+            _selectedMinutes = 0;
+          }
+        });
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blueAccent.withOpacity(0.15) : Colors.grey[900],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? Colors.blueAccent : Colors.grey[800]!,
+            width: 1.5,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: isSelected ? Colors.white : Colors.grey[400],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildComparisonRow(String feature, String localVal, String cloudVal) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(
+            feature,
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            '安心版: $localVal',
+            style: TextStyle(color: Colors.grey[400], fontSize: 13),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            '守護版: $cloudVal',
+            style: const TextStyle(color: Colors.tealAccent, fontSize: 13, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
+    );
   }
 }
