@@ -1,4 +1,7 @@
+export const SENDER_EMAIL = "萬一我消失 安心守護通知 <notify@workmateiia.com>";
+
 export interface SendEmailOptions {
+  from?: string;
   to: string[];
   subject: string;
   body: string;
@@ -10,7 +13,7 @@ export interface SendEmailOptions {
  * API Key 自 Cloudflare Secrets (env.RESEND_API_KEY) 取得。
  */
 export async function sendEmail(
-  { to, subject, body }: SendEmailOptions,
+  { from, to, subject, body }: SendEmailOptions,
   env: { RESEND_API_KEY: string }
 ): Promise<void> {
   const apiKey = env.RESEND_API_KEY;
@@ -25,7 +28,7 @@ export async function sendEmail(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "安心守護通知 <onboarding@resend.dev>",
+      from: from || SENDER_EMAIL,
       to: to,
       subject: subject,
       html: body,

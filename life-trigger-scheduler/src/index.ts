@@ -1,4 +1,4 @@
-import { sendEmail } from "./email";
+import { sendEmail, SENDER_EMAIL } from "./email";
 import { encryptText, decryptText } from "./crypto";
 
 export interface Env {
@@ -163,6 +163,7 @@ async function processScheduledTriggers(env: Env): Promise<{ processed: number; 
 			const { subject, bodyHtml } = generateEmailHtml(payloadText);
 
 			await sendEmail({
+				from: SENDER_EMAIL,
 				to: toList,
 				subject: subject,
 				body: bodyHtml
@@ -202,6 +203,7 @@ async function processScheduledTriggers(env: Env): Promise<{ processed: number; 
 				`;
 				try {
 					await sendEmail({
+						from: SENDER_EMAIL,
 						to: [userEmail.trim()],
 						subject: backupSubject,
 						body: backupBody
@@ -332,6 +334,7 @@ export default {
 					const { subject, bodyHtml } = generateEmailHtml(dummyPayload);
 
 					await sendEmail({
+						from: SENDER_EMAIL,
 						to: toList,
 						subject: subject,
 						body: bodyHtml
@@ -350,6 +353,7 @@ export default {
 						`;
 						try {
 							await sendEmail({
+								from: SENDER_EMAIL,
 								to: [user_email.trim()],
 								subject: backupSubject,
 								body: backupBody
