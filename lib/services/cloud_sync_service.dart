@@ -116,7 +116,7 @@ class CloudSyncService {
       
       request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
       request.headers.set('X-API-Key', apiAuthKey);
-      request.write(jsonEncode(body));
+      request.add(utf8.encode(jsonEncode(body)));
 
       final response = await request.close();
       final responseBody = await response.transform(utf8.decoder).join();
@@ -218,7 +218,7 @@ class CloudSyncService {
       
       request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
       request.headers.set('X-API-Key', apiAuthKey);
-      request.write(jsonEncode(body));
+      request.add(utf8.encode(jsonEncode(body)));
 
       final response = await request.close();
       final responseBody = await response.transform(utf8.decoder).join();
@@ -286,7 +286,7 @@ class CloudSyncService {
       
       request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
       request.headers.set('X-API-Key', apiAuthKey);
-      request.write(jsonEncode(body));
+      request.add(utf8.encode(jsonEncode(body)));
 
       final response = await request.close();
       final responseBody = await response.transform(utf8.decoder).join();
