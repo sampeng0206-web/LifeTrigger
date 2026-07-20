@@ -394,38 +394,70 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   }
 
   Future<void> _performRestore(BuildContext context) async {
+    bool isCancelled = false;
+
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: SimpleDialog(
-          backgroundColor: Colors.transparent,
-          children: [
-            Center(
-              child: CircularProgressIndicator(),
-            ),
-            SizedBox(height: 16),
-            Center(
-              child: Text('正在從雲端載入守護資料...', style: TextStyle(color: Colors.white)),
+      barrierDismissible: true,
+      builder: (dialogContext) => PopScope(
+        onPopInvokedWithResult: (didPop, result) {
+          isCancelled = true;
+        },
+        child: AlertDialog(
+          backgroundColor: Colors.grey[900],
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              SizedBox(height: 12),
+              CircularProgressIndicator(),
+              SizedBox(height: 20),
+              Text(
+                '正在從雲端載入守護資料...',
+                style: TextStyle(color: Colors.white, fontSize: 14),
+              ),
+              SizedBox(height: 8),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                isCancelled = true;
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('取消', style: TextStyle(color: Colors.grey)),
             ),
           ],
         ),
       ),
     );
 
-    final syncService = ref.read(cloudSyncServiceProvider);
-    
-    // 加入 12 秒連線超時機制
-    final cloudTriggers = await syncService.restoreCloudTriggers().timeout(
-      const Duration(seconds: 12),
-      onTimeout: () {
-        debugPrint('TIMEOUT: restoreCloudTriggers timed out.');
-        return null;
-      },
-    );
+    List<Map<String, dynamic>>? cloudTriggers;
+    try {
+      final syncService = ref.read(cloudSyncServiceProvider);
+      
+      // 加入 12 秒連線超時機制
+      cloudTriggers = await syncService.restoreCloudTriggers().timeout(
+        const Duration(seconds: 12),
+        onTimeout: () {
+          debugPrint('TIMEOUT: restoreCloudTriggers timed out.');
+          return null;
+        },
+      );
+    } catch (e) {
+      debugPrint('ERROR: Exception during restoreCloudTriggers: $e');
+      cloudTriggers = null;
+    } finally {
+      if (context.mounted && ModalRoute.of(context)?.isCurrent != true) {
+        // 安全關閉 Loading Dialog
+        try {
+          Navigator.pop(context);
+        } catch (_) {}
+      }
+    }
 
-    if (context.mounted) {
-      Navigator.pop(context); // 關閉 loading
+    if (isCancelled) {
+      debugPrint('LOG: Cloud restore cancelled by user.');
+      return;
     }
 
     if (cloudTriggers == null) {
@@ -478,10 +510,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 separatorBuilder: (context, index) => Divider(color: Colors.grey[800]),
                 itemBuilder: (context, index) {
                   final trigger = cloudTriggers[index];
-                  final emails = trigger['recipient_emails'] ?? '';
-                  final payload = trigger['payload'] ?? {};
-                  final msg = payload['message'] ?? '';
-                  final deadlineStr = trigger['deadline'] ?? '';
+                  final emails = (trigger['recipient_emails'] ?? '').toString();
+                  
+                  final payloadRaw = trigger['payload'];
+                  Map<String, dynamic> payload = {};
+                  if (payloadRaw is Map<String, dynamic>) {
+                    payload = payloadRaw;
+                  } else if (payloadRaw is Map) {
+                    payload = Map<String, dynamic>.from(payloadRaw);
+                  }
+
+                  final msg = (payload['message'] ?? '').toString();
+                  final deadlineStr = (trigger['deadline'] ?? '').toString();
                   
                   String timeLabel = '';
                   try {
@@ -540,66 +580,90 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   final storage = ref.read(storageServiceProvider);
                   final notificationService = ref.read(notificationServiceProvider);
 
-                  for (int i = 0; i < cloudTriggers.length; i++) {
-                    if (selectedStates[i]) {
-                      final triggerJson = cloudTriggers[i];
-                      final id = triggerJson['id'];
-                      final emailsStr = triggerJson['recipient_emails'] as String;
-                      final payload = triggerJson['payload'] as Map<String, dynamic>;
-                      final message = payload['message'] as String;
-                      final sharedMemory = payload['shared_memory'] as String;
-                      final deadlineStr = triggerJson['deadline'] as String;
+                  try {
+                    for (int i = 0; i < cloudTriggers.length; i++) {
+                      if (selectedStates[i]) {
+                        final triggerJson = cloudTriggers[i];
+                        final id = (triggerJson['id'] ?? const Uuid().v4()).toString();
+                        final emailsStr = (triggerJson['recipient_emails'] ?? '').toString();
+                        
+                        final payloadRaw = triggerJson['payload'];
+                        Map<String, dynamic> payload = {};
+                        if (payloadRaw is Map<String, dynamic>) {
+                          payload = payloadRaw;
+                        } else if (payloadRaw is Map) {
+                          payload = Map<String, dynamic>.from(payloadRaw);
+                        }
 
-                      final emails = emailsStr.split(',').map((e) => e.trim()).toList();
-                      final recipientIds = <String>[];
-                      for (var email in emails) {
-                        final recipientId = const Uuid().v4();
-                        final recipient = Recipient(
-                          id: recipientId,
-                          name: email.split('@').first,
-                          email: email,
-                          relationship: Relationship.friend,
+                        final message = (payload['message'] ?? '').toString();
+                        final sharedMemory = (payload['shared_memory'] ?? '').toString();
+                        final deadlineStr = (triggerJson['deadline'] ?? '').toString();
+
+                        final emails = emailsStr
+                            .split(',')
+                            .map((e) => e.trim())
+                            .where((e) => e.isNotEmpty)
+                            .toList();
+                            
+                        final recipientIds = <String>[];
+                        for (var email in emails) {
+                          final recipientId = const Uuid().v4();
+                          final recipient = Recipient(
+                            id: recipientId,
+                            name: email.contains('@') ? email.split('@').first : email,
+                            email: email,
+                            relationship: Relationship.friend,
+                          );
+                          await storage.saveRecipient(recipient);
+                          recipientIds.add(recipientId);
+                        }
+
+                        DateTime localDeadline;
+                        try {
+                          localDeadline = DateTime.parse(deadlineStr).toLocal();
+                        } catch (_) {
+                          localDeadline = DateTime.now().add(const Duration(days: 7));
+                        }
+
+                        final newTrigger = Trigger(
+                          id: id,
+                          mode: TriggerMode.quick,
+                          scheduledDeadline: localDeadline,
+                          autoRenewOnConfirm: true,
+                          requiresCloud: triggerJson['requires_cloud'] == 1,
+                          recipientIds: recipientIds,
+                          deliveryMethod: DeliveryMethod.email,
+                          message: message,
+                          sharedMemoryPrompt: sharedMemory,
+                          importance: Importance.normal,
+                          status: TriggerStatus.waiting,
+                          lastConfirmedAt: DateTime.now(),
+                          isActive: true,
                         );
-                        await storage.saveRecipient(recipient);
-                        recipientIds.add(recipientId);
+
+                        await storage.saveTrigger(newTrigger);
+
+                        await notificationService.scheduleWarningNotifications(newTrigger);
+
+                        restoreCount++;
                       }
-
-                      final deadlineUtc = DateTime.parse(deadlineStr);
-                      final localDeadline = deadlineUtc.toLocal();
-
-                      final newTrigger = Trigger(
-                        id: id,
-                        mode: TriggerMode.quick,
-                        scheduledDeadline: localDeadline,
-                        autoRenewOnConfirm: true,
-                        requiresCloud: triggerJson['requires_cloud'] == 1,
-                        recipientIds: recipientIds,
-                        deliveryMethod: DeliveryMethod.email,
-                        message: message,
-                        sharedMemoryPrompt: sharedMemory,
-                        importance: Importance.normal,
-                        status: TriggerStatus.waiting,
-                        lastConfirmedAt: DateTime.now(),
-                        isActive: true,
-                      );
-
-                      await storage.saveTrigger(newTrigger);
-
-                      await notificationService.scheduleWarningNotifications(newTrigger);
-
-                      restoreCount++;
                     }
-                  }
 
-                  if (restoreCount > 0) {
-                    ref.read(activeTriggersProvider.notifier).refresh();
+                    if (restoreCount > 0) {
+                      ref.read(activeTriggersProvider.notifier).refresh();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('成功還原 $restoreCount 筆安心守護！'),
+                            backgroundColor: Colors.greenAccent[700],
+                          ),
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    debugPrint('ERROR: Exception during saving restored triggers: $e');
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('成功還原 $restoreCount 筆安心守護！'),
-                          backgroundColor: Colors.greenAccent[700],
-                        ),
-                      );
+                      _showResultDialog(context, '還原失敗', '寫入地端資料庫時發生錯誤：$e');
                     }
                   }
                 },

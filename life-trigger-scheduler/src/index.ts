@@ -178,23 +178,42 @@ async function processScheduledTriggers(env: Env): Promise<{ processed: number; 
 			// E. 檢查並寄送使用者通知副本
 			let userEmail: string | undefined;
 			let recipientNames: string | undefined;
+			let msgText = "";
+			let memoryText = "";
 			try {
 				const parsed = JSON.parse(payloadText);
 				if (parsed && typeof parsed === "object") {
 					userEmail = parsed.user_email;
 					recipientNames = parsed.recipient_names;
+					msgText = parsed.message || "";
+					memoryText = parsed.shared_memory || "";
+				} else {
+					msgText = payloadText;
 				}
 			} catch (e) {
-				// 忽略解析錯誤
+				msgText = payloadText;
 			}
 
 			if (userEmail && userEmail.trim().length > 0) {
 				const triggerTime = new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
 				const backupSubject = "【萬一我消失】您的安心守護通知已觸發";
+				const memoryBlockHtml = memoryText ? `
+						<div style="margin-bottom: 15px;">
+							<strong style="color: #444; display: block; margin-bottom: 5px;">共同記憶：</strong>
+							<p style="color: #111; margin: 0; white-space: pre-wrap; font-size: 15px; background: #fafafa; padding: 12px; border-radius: 6px; border: 1px solid #eaeaea;">${memoryText}</p>
+						</div>
+				` : "";
 				const backupBody = `
 					<div style="font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; background-color: #ffffff;">
 						<h2 style="color: #1a1a1a; margin-top: 0; font-size: 20px;">🛡️ 安心守護 — 副本通知</h2>
-						<p style="color: #111; font-size: 15px;">您設定的安心守護通知已於 <strong>${triggerTime}</strong> 觸發，系統已將通知信件寄送給以下對象：<strong>${recipientNames || trigger.recipient_emails}</strong>。</p>
+						<p style="color: #111; font-size: 15px;">您設定的安心守護通知已於 <strong>${triggerTime}</strong> 觸發，系統已將以下內容寄送給：<strong>${recipientNames || trigger.recipient_emails}</strong></p>
+						<hr style="border: none; border-top: 1px dashed #ccc; margin: 20px 0;" />
+						<div style="margin-bottom: 15px;">
+							<strong style="color: #444; display: block; margin-bottom: 5px;">訊息內容：</strong>
+							<p style="color: #111; margin: 0; white-space: pre-wrap; font-size: 15px; background: #fafafa; padding: 12px; border-radius: 6px; border: 1px solid #eaeaea;">${msgText}</p>
+						</div>
+						${memoryBlockHtml}
+						<hr style="border: none; border-top: 1px dashed #ccc; margin: 20px 0;" />
 						<p style="color: #ff3b30; font-weight: bold; font-size: 14px; margin-top: 20px;">如果這不是您預期的情況，請盡快確認您的守護任務設定。</p>
 					</div>
 				`;
@@ -367,10 +386,23 @@ export default {
 					if (user_email && user_email.trim().length > 0) {
 						const triggerTime = new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
 						const backupSubject = "【萬一我消失】您的安心守護通知已觸發";
+						const memoryBlockHtml = shared_memory ? `
+								<div style="margin-bottom: 15px;">
+									<strong style="color: #444; display: block; margin-bottom: 5px;">共同記憶：</strong>
+									<p style="color: #111; margin: 0; white-space: pre-wrap; font-size: 15px; background: #fafafa; padding: 12px; border-radius: 6px; border: 1px solid #eaeaea;">${shared_memory}</p>
+								</div>
+						` : "";
 						const backupBody = `
 							<div style="font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; background-color: #ffffff;">
 								<h2 style="color: #1a1a1a; margin-top: 0; font-size: 20px;">🛡️ 安心守護 — 副本通知</h2>
-								<p style="color: #111; font-size: 15px;">您設定的安心守護通知已於 <strong>${triggerTime}</strong> 觸發，系統已將通知信件寄送給以下對象：<strong>${recipient_names || recipient_emails}</strong>。</p>
+								<p style="color: #111; font-size: 15px;">您設定的安心守護通知已於 <strong>${triggerTime}</strong> 觸發，系統已將以下內容寄送給：<strong>${recipient_names || recipient_emails}</strong></p>
+								<hr style="border: none; border-top: 1px dashed #ccc; margin: 20px 0;" />
+								<div style="margin-bottom: 15px;">
+									<strong style="color: #444; display: block; margin-bottom: 5px;">訊息內容：</strong>
+									<p style="color: #111; margin: 0; white-space: pre-wrap; font-size: 15px; background: #fafafa; padding: 12px; border-radius: 6px; border: 1px solid #eaeaea;">${message}</p>
+								</div>
+								${memoryBlockHtml}
+								<hr style="border: none; border-top: 1px dashed #ccc; margin: 20px 0;" />
 								<p style="color: #ff3b30; font-weight: bold; font-size: 14px; margin-top: 20px;">如果這不是您預期的情況，請盡快確認您的守護任務設定。</p>
 							</div>
 						`;

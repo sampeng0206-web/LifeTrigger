@@ -66,7 +66,7 @@ class BrandIntroView extends ConsumerWidget {
                   ),
                 ),
                 child: const Text(
-                  '「萬一哪天我聯絡不上你，\n'
+                  '「萬一哪天我們突然失去聯絡或不再連繫，\n'
                   '不一定代表發生了不好的事。\n'
                   '也許我只是累了、\n'
                   '想暫時遠離圈子安靜一下，\n'
@@ -79,7 +79,7 @@ class BrandIntroView extends ConsumerWidget {
                   '也可能只是暫時失聯、受困、手術中——\n'
                   '不預設任何終點，\n'
                   '只為在我無法親自處理的時候，\n'
-                  '好好地傳達心意。」',
+                  '好好地傳達心意與交代。」',
                   style: TextStyle(
                     fontSize: 15,
                     color: Color(0xFFEAE3DB), // 稍微降低對比、帶暖調的米白色

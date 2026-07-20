@@ -149,8 +149,13 @@ class CloudSyncService {
     client.connectionTimeout = const Duration(seconds: 10);
 
     try {
-      // 1. 取得 RevenueCat App User ID
-      final customerInfo = await Purchases.getCustomerInfo();
+      // 1. 取得 RevenueCat App User ID (加上 8 秒超時保護)
+      final customerInfo = await Purchases.getCustomerInfo().timeout(
+        const Duration(seconds: 8),
+        onTimeout: () {
+          throw Exception('RevenueCat User ID query timed out.');
+        },
+      );
       final userId = customerInfo.originalAppUserId;
       if (userId.isEmpty) {
         debugPrint('ERROR: CloudSyncService: RevenueCat User ID is empty for restore.');
