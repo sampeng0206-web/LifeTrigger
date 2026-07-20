@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>技術支援與常見問題 — LifeTrigger 萬一我消失</title>
+  <style>
+    :root {
+      --bg-color: #0f1117;
+      --card-bg: #1a1d27;
+      --border-color: #2a2e3d;
+      --text-main: #f0f2f5;
+      --text-muted: #9aa0a6;
+      --accent-color: #3b82f6;
+      --accent-hover: #2563eb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      line-height: 1.6;
+      padding: 0 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 30px;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    header h1 {
+      font-size: 26px;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+    header p {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    nav {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+    }
+    nav a {
+      color: var(--text-main);
+      text-decoration: none;
+      padding: 8px 16px;
+      background-color: var(--border-color);
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+    nav a:hover, nav a.active {
+      background-color: var(--accent-color);
+      color: #ffffff;
+    }
+    .contact-box {
+      background: #141720;
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--accent-color);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+    .contact-box h3 {
+      font-size: 16px;
+      margin-bottom: 8px;
+      color: #ffffff;
+    }
+    .contact-box p {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    .contact-box a {
+      color: var(--accent-color);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .faq-section h2 {
+      font-size: 20px;
+      color: #ffffff;
+      margin-bottom: 20px;
+      border-bottom: 1px dashed var(--border-color);
+      padding-bottom: 10px;
+    }
+    .faq-item {
+      margin-bottom: 20px;
+      padding: 16px;
+      background: #141720;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+    }
+    .faq-item h3 {
+      font-size: 16px;
+      color: #ffffff;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .faq-item p, .faq-item ul {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-left: 24px;
+    }
+    .faq-item ul {
+      list-style-type: disc;
+      padding-left: 20px;
+      margin-top: 8px;
+    }
+    .faq-item li {
+      margin-bottom: 6px;
+    }
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>💬 技術支援與常見問題 (Support)</h1>
+      <p>LifeTrigger 萬一我消失 — 客服支援與使用常見疑問</p>
+    </header>
+
+    <nav>
+      <a href="index.html">首頁目錄</a>
+      <a href="support.html" class="active">支援服務 Support</a>
+      <a href="privacy.html">隱私權政策 Privacy</a>
+      <a href="eula.html">使用者條款 EULA</a>
+    </nav>
+
+    <main>
+      <div class="contact-box">
+        <h3>📩 聯絡開發者與客服團隊</h3>
+        <p>若您在設定守護任務、恢復購買或使用過程中遇到任何問題，歡迎隨時透過電子郵件與我們聯繫：</p>
+        <p style="margin-top: 10px;">官方支援信箱：<a href="mailto:sampeng0206@gmail.com">sampeng0206@gmail.com</a></p>
+        <p style="font-size: 12px; margin-top: 6px; color: #71717a;">（我們通常會在 1-2 個工作天內回覆您的信件）</p>
+      </div>
+
+      <div class="faq-section">
+        <h2>❓ 常見問題列表 (FAQ)</h2>
+
+        <div class="faq-item">
+          <h3>📌 1. 什麼是「萬一我消失」安心守護 App？</h3>
+          <p>《LifeTrigger 萬一我消失》是一款專為個人交代與定時安全確認設計的安心工具。當您開啟守護任務後，系統會依您設定的時間間隔提示您點擊「我還在」。若您在時間到期前未回覆安全確認，系統將視為您暫時無法應答，並依您的預先設定發送交代訊息與共同記憶給您指定的緊急聯絡人。</p>
+        </div>
+
+        <div class="faq-item">
+          <h3>📌 2. 如何建立與啟動一個守護任務？</h3>
+          <p>開啟 App 後，點擊首頁的「＋ 開始安排」按鈕，依照引導完成 4 個簡單步驟：</p>
+          <ul>
+            <li><strong>第一步（收件人）</strong>：輸入對方的姓名與電子郵件地址（支援多位收件人）。</li>
+            <li><strong>第二步（時間間隔）</strong>：選擇安全確認的倒數時間（安心版：最少 5 分鐘，最多 7 天；守護版：最少 5 分鐘，最多 365 天）。</li>
+            <li><strong>第三步（交代內容）</strong>：寫下給對方的信件內文及雙方專屬的「共同記憶」。</li>
+            <li><strong>第四步（預覽啟動）</strong>：確認設定無誤後點擊「啟動安心守護」即可生效。</li>
+          </ul>
+        </div>
+
+        <div class="faq-item">
+          <h3>📌 3. 「通知副本」與信件寄送機制是如何運作的？</h3>
+          <p>為確保訊息透明並防範誤觸或誤發，當守護任務逾期觸發發信時，系統除了將交代訊息寄送給您設定的收件人外，也會同時寄送一份「副本通知」至您個人註冊或設定的備份 Email。若此為誤觸或非預期觸發，您可以第一時間獲知並通知聯絡人說明。</p>
+        </div>
+
+        <div class="faq-item">
+          <h3>📌 4. 我該如何取消或修改進行中的守護任務？</h3>
+          <p>在 App 首頁的「守護中」卡片上，您可以隨時點擊「取消任務」按鈕。點擊並確認後，該筆守護任務將立即停止，且不會再發送任何通知信件。若需調整時間或內文，可將舊任務取消後重新建立。</p>
+        </div>
+
+        <div class="faq-item">
+          <h3>📌 5. 如何管理、恢復或取消付費訂閱方案？</h3>
+          <p>本 App 提供「交代安心版（單次買斷）」與「交代守護版（年訂閱）」：</p>
+          <ul>
+            <li><strong>恢復購買</strong>：若您換手機或重新安裝 App，可在 App 設定頁面中點擊「從雲端還原守護資料」或「還原購買項目」即可恢復您的付費資格。</li>
+            <li><strong>取消訂閱</strong>：如欲取消「交代守護版」年訂閱，請開啟您 iPhone/iPad 的「設定」&gt; 點擊您的「Apple ID 姓名」&gt; 點擊「訂閱項目」&gt; 選擇「LifeTrigger」並點擊「取消訂閱」即可。</li>
+          </ul>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      &copy; 2026 LifeTrigger Team. All rights reserved.<br>
+      聯絡支援信箱：<a href="mailto:sampeng0206@gmail.com" style="color: var(--text-muted);">sampeng0206@gmail.com</a>
+    </footer>
+  </div>
+</body>
+</html>

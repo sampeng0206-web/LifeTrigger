@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>隱私權政策 (Privacy Policy) — LifeTrigger 萬一我消失</title>
+  <style>
+    :root {
+      --bg-color: #0f1117;
+      --card-bg: #1a1d27;
+      --border-color: #2a2e3d;
+      --text-main: #f0f2f5;
+      --text-muted: #9aa0a6;
+      --accent-color: #3b82f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      line-height: 1.6;
+      padding: 0 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 30px;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    header h1 {
+      font-size: 26px;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+    header p {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    nav {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+    }
+    nav a {
+      color: var(--text-main);
+      text-decoration: none;
+      padding: 8px 16px;
+      background-color: var(--border-color);
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+    nav a:hover, nav a.active {
+      background-color: var(--accent-color);
+      color: #ffffff;
+    }
+    .update-date {
+      font-size: 13px;
+      color: var(--accent-color);
+      margin-bottom: 24px;
+      font-weight: 500;
+    }
+    section {
+      margin-bottom: 28px;
+    }
+    section h2 {
+      font-size: 18px;
+      color: #ffffff;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px dashed var(--border-color);
+    }
+    section p, section ul {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    section ul {
+      list-style-type: disc;
+      padding-left: 24px;
+    }
+    section li {
+      margin-bottom: 6px;
+    }
+    .highlight-box {
+      background: #141720;
+      border: 1px solid var(--border-color);
+      border-left: 4px solid #10b981;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 16px 0;
+    }
+    .highlight-box h3 {
+      color: #10b981;
+      font-size: 15px;
+      margin-bottom: 6px;
+    }
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🔒 隱私權政策 (Privacy Policy)</h1>
+      <p>LifeTrigger 萬一我消失 — 個人資料保護與隱私承諾</p>
+    </header>
+
+    <nav>
+      <a href="index.html">首頁目錄</a>
+      <a href="support.html">支援服務 Support</a>
+      <a href="privacy.html" class="active">隱私權政策 Privacy</a>
+      <a href="eula.html">使用者條款 EULA</a>
+    </nav>
+
+    <main>
+      <div class="update-date">最後修訂日期：2026 年 7 月 20 日</div>
+
+      <section>
+        <p>歡迎使用《LifeTrigger 萬一我消失》（以下簡稱「本 App」或「本服務」）。我們非常重視您的個人隱私與資料安全。本隱私權政策旨在說明我們如何蒐集、使用、處理、保護及刪除您的個人資料，請您詳細閱讀。</p>
+      </section>
+
+      <section>
+        <h2>一、我們蒐集的資料類型</h2>
+        <p>為提供個人守護任務設定及定時訊息寄送服務，我們可能在您使用本 App 時蒐集以下資訊：</p>
+        <ul>
+          <li><strong>使用者個人帳號 / 備份 Email</strong>：您設定之個人電子郵件地址（User Email）。當守護任務逾期觸發時，系統將使用此 Email 發送「安心守護 — 副本通知」給您，確保您能及時獲悉訊息發送狀況。此 Email 連同任務內文封裝於加密 Payload 中傳輸與儲存。</li>
+          <li><strong>裝置與識別碼資訊</strong>：由金流系統（RevenueCat）自動生成之高熵隨機 UUID 匿名使用者識別碼（App User ID），用於紀錄您的方案訂閱權限狀態。</li>
+          <li><strong>緊急聯絡人資料</strong>：您手動輸入之緊急聯絡人姓名（Recipient Names）、電子郵件地址（Recipient Emails）。</li>
+          <li><strong>任務與交代內容</strong>：您手動設定之守護信件訊息內文（Message）、雙方專屬之「共同記憶」（Shared Memory Prompt）及任務到期時間（Scheduled Deadline）。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>二、強效金律加密處理機制（ENCRYPTION_KEY）</h2>
+        <div class="highlight-box">
+          <h3>🛡️ 全全程端對端傳輸與強效 AES-GCM 加密</h3>
+          <p>當您選擇啟用「交代守護版（雲端保管功能）」時，您設定的使用者個人 Email、訊息內文與共同記憶在寫入雲端伺服器（Cloudflare D1 資料庫）前，均會於伺服器端經由安全的高強度演算法（AES-GCM / 專屬 ENCRYPTION_KEY）進行加密儲存。傳輸過程全全程採用 HTTPS / TLS 加密通道。</p>
+          <p style="margin-top: 8px;"><strong>開發者無權亦無法讀取您的明文內容</strong>：即便發生資料庫被非授權存取之極端狀況，未持有安全金鑰者亦僅能看到隨機亂碼，無法還原為文字。您的個人隱私獲得最嚴格的技術保障。</p>
+        </div>
+      </section>
+
+      <section>
+        <h2>三、資料保存與刪除政策</h2>
+        <ul>
+          <li><strong>地端儲存（Hive NoSQL）</strong>：免費版及安心版之任務資料僅存於您個人手機裝置中。當您在 App 內刪除任務或移除 App 時，資料將從裝置完全抹除。</li>
+          <li><strong>雲端儲存（Cloudflare D1）</strong>：守護版雲端資料在任務完成發送或由您主動點擊「取消任務」時，雲端伺服器將同步標記並物理清理該筆資料。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>四、第三方服務清單與資料分享說明</h2>
+        <p>我們絕不將您的個人資料出售、出租或不正當揭露給無關之第三方。本 App 僅配合以下經嚴格篩選之第三方服務供應商提供基礎技術支援：</p>
+        <ul>
+          <li><strong>Resend（郵件寄送服務）</strong>：當守護任務逾期觸發時，僅傳送發信所必須之收件人 Email 及信件內容以執行電子郵件寄送。</li>
+          <li><strong>RevenueCat（App 內購與訂閱管理）</strong>：處理 Apple App Store 內購驗證與訂閱資格狀態同步。</li>
+          <li><strong>Google AdMob（廣告服務）</strong>：針對免費版使用者提供非個人化廣告（Non-Personalized Ads）投放。當您升級為安心版或守護版後，廣告功能將自動停用。</li>
+          <li><strong>Cloudflare（雲端邊緣伺服器與資料庫）</strong>：提供安全的高效能 Cloudflare Workers API 運行環境與加密 D1 資料庫儲存。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>五、使用者的權利與資料控制</h2>
+        <p>您對自己的個人資料享有完全的掌控權：</p>
+        <ul>
+          <li><strong>查詢與更新</strong>：您可隨時開啟 App 查閱或重新設定守護任務內容與收件人。</li>
+          <li><strong>撤回與刪除</strong>：您可隨時於 App 首頁點擊「取消任務」以刪除特定守護記錄。若欲要求刪除雲端伺服器上記錄之所有個人資料，請直接發送電子郵件至我們的支援信箱：<a href="mailto:sampeng0206@gmail.com" style="color: var(--accent-color);">sampeng0206@gmail.com</a>，我們將於 3 個工作天內處理完畢。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>六、隱私權政策之修改</h2>
+        <p>我們可能因應法律變更或服務調整而修訂本隱私權政策。最新版本將隨時發布於本網站上。若有重大變更，我們將在 App 內發出適當通知。</p>
+      </section>
+    </main>
+
+    <footer>
+      &copy; 2026 LifeTrigger Team. All rights reserved.<br>
+      聯絡支援信箱：<a href="mailto:sampeng0206@gmail.com" style="color: var(--text-muted);">sampeng0206@gmail.com</a>
+    </footer>
+  </div>
+</body>
+</html>
