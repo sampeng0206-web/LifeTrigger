@@ -12,12 +12,13 @@ class AdService {
   bool _isInitialized = false;
 
   // ============================================================================
-  // AdMob 官方提供的測試廣告單元 ID (Test Banner Unit ID)
+  // AdMob 廣告單元 ID (Banner Unit ID)
   // ============================================================================
   static String get bannerAdUnitId {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
-      return 'ca-app-pub-3940256099942544/2934735716';
+      return 'ca-app-pub-3755777658581400/3591225793';
     } else {
+      // Android版尚未在AdMob後台建立正式App，此為官方測試ID，待未來Android版上線並於AdMob後台建立對應App後再替換
       return 'ca-app-pub-3940256099942544/6300978111';
     }
   }
