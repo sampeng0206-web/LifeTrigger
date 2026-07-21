@@ -492,6 +492,19 @@ export default {
 				}
 			}
 
+			// POST /api/triggers/test-cron: 手動觸發排程測試
+			if (url.pathname === "/api/triggers/test-cron" && request.method === "POST") {
+				try {
+					const result = await processScheduledTriggers(env);
+					return new Response(JSON.stringify({ success: true, result }), {
+						status: 200,
+						headers: { "Content-Type": "application/json" }
+					});
+				} catch (err: any) {
+					return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+				}
+			}
+
 			// GET /api/triggers/restore: 還原多端資料
 			if (url.pathname === "/api/triggers/restore" && request.method === "GET") {
 				try {

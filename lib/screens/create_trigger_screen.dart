@@ -208,6 +208,12 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
       final duration = _getSelectedDuration();
       final storage = ref.read(storageServiceProvider);
 
+      // 0. 保存並鎖定通知副本 Email
+      final backupEmail = _backupEmailController.text.trim();
+      if (backupEmail.isNotEmpty) {
+        await storage.saveUserEmail(backupEmail);
+      }
+
       // 1. Create Recipient
       final recipient = Recipient(
         id: const Uuid().v4(),
@@ -226,6 +232,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
         recipientIds: [recipient.id],
         message: _messageController.text.trim(),
         sharedMemoryPrompt: _sharedMemoryController.text.trim(),
+        userEmail: backupEmail.isNotEmpty ? backupEmail : null,
       );
 
       if (result.status == CreateTriggerStatus.quotaExceeded) {

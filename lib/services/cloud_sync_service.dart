@@ -27,7 +27,7 @@ class CloudSyncService {
       !baseUrl.contains('YOUR_CLOUDFLARE_WORKER_URL_HERE');
 
   /// 上傳 / 更新雲端上的 Trigger 資料
-  Future<bool> uploadCloudTrigger(Trigger trigger) async {
+  Future<bool> uploadCloudTrigger(Trigger trigger, {String? userEmail}) async {
     if (!isConfigured) {
       debugPrint('WARNING: CloudSyncService: baseUrl is not configured. Bypassing upload.');
       // 如果未設定，且處於除錯模式下，為了便於本地測試，回傳 true。正式部署必須設定。
@@ -69,7 +69,12 @@ class CloudSyncService {
         return false;
       }
 
-      final userEmail = storage.getUserEmail();
+      final rawUserEmail = (userEmail != null && userEmail.trim().isNotEmpty)
+          ? userEmail.trim()
+          : storage.getUserEmail();
+      final cleanUserEmail = (rawUserEmail != null && rawUserEmail.trim().isNotEmpty)
+          ? rawUserEmail.trim()
+          : null;
 
       // 3. 計算截止期限
       DateTime deadline;
@@ -105,7 +110,7 @@ class CloudSyncService {
         'payload': {
           'message': trigger.message,
           'shared_memory': trigger.sharedMemoryPrompt,
-          'user_email': userEmail,
+          'user_email': cleanUserEmail,
           'recipient_names': names.join(', '),
         }
       };

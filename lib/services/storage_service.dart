@@ -125,7 +125,12 @@ class StorageService {
     required List<String> recipientIds,
     required String message,
     required String sharedMemoryPrompt,
+    String? userEmail,
   }) async {
+    if (userEmail != null && userEmail.trim().isNotEmpty) {
+      await saveUserEmail(userEmail.trim());
+    }
+
     final quota = getUserQuota();
     final hasQuota = quota.freeTriggersRemaining > 0 ||
         quota.isLocalUnlimited ||
@@ -178,7 +183,10 @@ class StorageService {
 
     // Sync to cloud if needed
     if (requiresCloud) {
-      final success = await _ref.read(cloudSyncServiceProvider).uploadCloudTrigger(newTrigger);
+      final success = await _ref.read(cloudSyncServiceProvider).uploadCloudTrigger(
+        newTrigger,
+        userEmail: userEmail,
+      );
       if (!success) {
         newTrigger.status = TriggerStatus.failed;
         newTrigger.failureReason = FailureReason.cloudSyncFailed;
