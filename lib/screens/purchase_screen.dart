@@ -195,6 +195,7 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
                   color: Colors.blueAccent,
                   isSubscription: false,
                   onPressed: () {
+                    if (_isLoading) return;
                     if (lifetimePackage != null) {
                       // 1. 正式環境/Release/TestFlight：使用 RevenueCat SDK 執行實際的 App Store / Google Play 購買
                       _buyPackage(lifetimePackage);
@@ -219,6 +220,7 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
                   color: Colors.teal,
                   isSubscription: true,
                   onPressed: () {
+                    if (_isLoading) return;
                     if (annualPackage != null) {
                       // 1. 正式環境/Release/TestFlight：使用 RevenueCat SDK 執行實際的 App Store / Google Play 購買
                       _buyPackage(annualPackage);

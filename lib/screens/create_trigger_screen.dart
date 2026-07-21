@@ -28,6 +28,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
   int _selectedHours = 24;
   int _selectedMinutes = 0;
   int _activeTab = 0; // 0: 短期安排, 1: 長期守護
+  bool _isSubmitting = false; // 防重複點擊鎖定旗標
 
   // Recipient state
   final _recipientNameController = TextEditingController();
@@ -197,81 +198,95 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
   }
 
   Future<void> _save() async {
-    final duration = _getSelectedDuration();
-    final storage = ref.read(storageServiceProvider);
+    if (_isSubmitting) return;
 
-    // 1. Create Recipient
-    final recipient = Recipient(
-      id: const Uuid().v4(),
-      name: _recipientNameController.text.trim(),
-      email: _recipientEmailController.text.trim(),
-      relationship: _selectedRelationship,
-    );
+    setState(() {
+      _isSubmitting = true;
+    });
 
-    await storage.saveRecipient(recipient);
+    try {
+      final duration = _getSelectedDuration();
+      final storage = ref.read(storageServiceProvider);
 
-    // 2. Create Trigger
-    final result = await storage.createNewTrigger(
-      mode: TriggerMode.quick,
-      intervalDuration: duration,
-      autoRenewOnConfirm: true, // 預設為循環確認模式
-      recipientIds: [recipient.id],
-      message: _messageController.text.trim(),
-      sharedMemoryPrompt: _sharedMemoryController.text.trim(),
-    );
+      // 1. Create Recipient
+      final recipient = Recipient(
+        id: const Uuid().v4(),
+        name: _recipientNameController.text.trim(),
+        email: _recipientEmailController.text.trim(),
+        relationship: _selectedRelationship,
+      );
 
-    if (result.status == CreateTriggerStatus.quotaExceeded) {
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: Colors.grey[900],
-            title: const Text('額度已達上限', style: TextStyle(color: Colors.white)),
-            content: const Text(
-              '免費體驗版僅支援 1 次免費安排。若要啟用更多，請升級為安心版（買斷）或守護版（訂閱）。',
-              style: TextStyle(color: Colors.grey),
+      await storage.saveRecipient(recipient);
+
+      // 2. Create Trigger
+      final result = await storage.createNewTrigger(
+        mode: TriggerMode.quick,
+        intervalDuration: duration,
+        autoRenewOnConfirm: true, // 預設為循環確認模式
+        recipientIds: [recipient.id],
+        message: _messageController.text.trim(),
+        sharedMemoryPrompt: _sharedMemoryController.text.trim(),
+      );
+
+      if (result.status == CreateTriggerStatus.quotaExceeded) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: Colors.grey[900],
+              title: const Text('額度已達上限', style: TextStyle(color: Colors.white)),
+              content: const Text(
+                '免費體驗版僅支援 1 次免費安排。若要啟用更多，請升級為安心版（買斷）或守護版（訂閱）。',
+                style: TextStyle(color: Colors.grey),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('取消', style: TextStyle(color: Colors.grey)),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    context.push('/purchase');
+                  },
+                  child: const Text('去升級', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('取消', style: TextStyle(color: Colors.grey)),
+          );
+        }
+      } else if (result.status == CreateTriggerStatus.cloudSyncFailed) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: Colors.grey[900],
+              title: const Text('雲端同步失敗', style: TextStyle(color: Colors.white)),
+              content: const Text(
+                '無法將此守護上傳至雲端伺服器，請檢查您的網路連線後重試。',
+                style: TextStyle(color: Colors.grey),
               ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  context.push('/purchase');
-                },
-                child: const Text('去升級', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-        );
-      }
-    } else if (result.status == CreateTriggerStatus.cloudSyncFailed) {
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: Colors.grey[900],
-            title: const Text('雲端同步失敗', style: TextStyle(color: Colors.white)),
-            content: const Text(
-              '無法將此守護上傳至雲端伺服器，請檢查您的網路連線後重試。',
-              style: TextStyle(color: Colors.grey),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('確定', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('確定', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-        );
+          );
+        }
+      } else {
+        // 成功，重整 triggers 並導向成功畫面
+        ref.read(activeTriggersProvider.notifier).refresh();
+        if (mounted) {
+          context.go('/success');
+        }
       }
-    } else {
-      // 成功，重整 triggers 並導向成功畫面
-      ref.read(activeTriggersProvider.notifier).refresh();
+    } finally {
       if (mounted) {
-        context.go('/success');
+        setState(() {
+          _isSubmitting = false;
+        });
       }
     }
   }
@@ -409,7 +424,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
           Builder(
             builder: (context) {
               final quota = ref.watch(storageServiceProvider).getUserQuota();
-              final isNextDisabled = _currentStep == 1 && _activeTab == 1 && !quota.isCloudGuardianActive;
+              final isNextDisabled = (_currentStep == 1 && _activeTab == 1 && !quota.isCloudGuardianActive) || _isSubmitting;
 
               return ElevatedButton(
                 key: const Key('next_button'),
@@ -425,10 +440,16 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
                   elevation: isNextDisabled ? 0 : 4,
                 ),
                 onPressed: isNextDisabled ? null : _onNextPressed,
-                child: Text(
-                  _currentStep == 3 ? '啟動安心守護' : '下一步',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
+                child: _isSubmitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : Text(
+                        _currentStep == 3 ? '啟動安心守護' : '下一步',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
               );
             },
           ),

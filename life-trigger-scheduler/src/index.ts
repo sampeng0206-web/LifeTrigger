@@ -232,7 +232,9 @@ async function processScheduledTriggers(env: Env): Promise<{ processed: number; 
 				msgText = payloadText;
 			}
 
+			console.log(`${logPrefix} Checking backup email. Raw userEmail: '${userEmail}'`);
 			if (userEmail && userEmail.trim().length > 0) {
+				console.log(`${logPrefix} Sending backup email copy to: ${userEmail.trim()}`);
 				const triggerTime = new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
 				const { subject: backupSubject, bodyHtml: backupBody } = generateBackupEmailHtml(
 					msgText,
@@ -248,10 +250,12 @@ async function processScheduledTriggers(env: Env): Promise<{ processed: number; 
 						subject: backupSubject,
 						body: backupBody
 					}, env);
-					console.log(`${logPrefix} Backup copy sent successfully to ${userEmail}.`);
+					console.log(`${logPrefix} Backup copy sent successfully (Resend HTTP 200) to ${userEmail}.`);
 				} catch (backupErr) {
 					console.error(`${logPrefix} Failed to send backup email to ${userEmail}:`, backupErr);
 				}
+			} else {
+				console.log(`${logPrefix} No backup email configured for this trigger.`);
 			}
 
 			// D. 更新資料庫最終狀態：若聯絡人寄件成功視為 delivered，否則設為 failed
@@ -407,7 +411,9 @@ export default {
 
 					// 2. 如果使用者填寫了備份 Email，額外寄送通知副本
 					let backupSuccess = false;
+					console.log(`[send-local] Checking backup email. Raw user_email: '${user_email}'`);
 					if (user_email && user_email.trim().length > 0) {
+						console.log(`[send-local] Sending backup email copy to: ${user_email.trim()}`);
 						const triggerTime = new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
 						const { subject: backupSubject, bodyHtml: backupBody } = generateBackupEmailHtml(
 							message,
@@ -424,9 +430,12 @@ export default {
 								body: backupBody
 							}, env);
 							backupSuccess = true;
+							console.log(`[send-local] Backup copy sent successfully (Resend HTTP 200) to ${user_email}.`);
 						} catch (backupErr) {
-							console.error("Failed to send backup email copy:", backupErr);
+							console.error("[send-local] Failed to send backup email copy:", backupErr);
 						}
+					} else {
+						console.log(`[send-local] No backup email configured.`);
 					}
 
 					if (recipientSuccess) {

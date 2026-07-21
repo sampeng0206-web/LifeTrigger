@@ -67,10 +67,16 @@ class _TriggerCardState extends ConsumerState<TriggerCard> {
     });
   }
 
+  bool _isCancelling = false;
+
   void _handleCancel(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
+    if (_isCancelling) return;
+    _isCancelling = true;
+
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
         backgroundColor: Colors.grey[900],
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
@@ -97,29 +103,32 @@ class _TriggerCardState extends ConsumerState<TriggerCard> {
       ),
     );
 
-    if (confirmed == true) {
-      final storage = ref.read(storageServiceProvider);
-      
-      final oldQuota = storage.getUserQuota().freeTriggersRemaining;
-      await storage.cancelTrigger(widget.trigger.id);
-      
-      // 重新整理首頁清單
-      ref.read(activeTriggersProvider.notifier).refresh();
-      
-      final newQuota = storage.getUserQuota().freeTriggersRemaining;
-      final refunded = newQuota > oldQuota;
+      if (confirmed == true) {
+        final storage = ref.read(storageServiceProvider);
+        
+        final oldQuota = storage.getUserQuota().freeTriggersRemaining;
+        await storage.cancelTrigger(widget.trigger.id);
+        
+        // 重新整理首頁清單
+        ref.read(activeTriggersProvider.notifier).refresh();
+        
+        final newQuota = storage.getUserQuota().freeTriggersRemaining;
+        final refunded = newQuota > oldQuota;
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(refunded
-                ? '已取消任務，並已退還 1 次免費額度。'
-                : '已取消該安心守護任務！'),
-            backgroundColor: refunded ? Colors.green[700] : Colors.redAccent,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(refunded
+                  ? '已取消任務，並已退還 1 次免費額度。'
+                  : '已取消該安心守護任務！'),
+              backgroundColor: refunded ? Colors.green[700] : Colors.redAccent,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
+    } finally {
+      _isCancelling = false;
     }
   }
 
