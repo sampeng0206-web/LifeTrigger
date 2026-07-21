@@ -22,6 +22,10 @@
    - **假設方向**：新增本地儲存欄位記錄使用者上次選擇，若選擇跳過則往後冷啟動不再自動詢問，除非有新的雲端trigger資料
    - **改動成本**：medium（涉及本地儲存欄位新增，需考慮欄位過期或清除機制，避免真正需要還原時被舊標記擋住）
    - **目前決定**：暫緩，優先處理送審前必要項目（EULA/隱私權政策/支援URL、sandbox IAP驗證）
+2. **付費頁面金額顯示暫時硬編碼台幣（技術債紀錄）**：
+   - **現況**：因 Life Trigger 尚未提交 App Store 審查且 App Store Connect 的 IAP 內購項目尚未設定完成，StoreKit 抓不到後台定價而退回顯示美金。
+   - **暫時處置**：於 TestFlight 測試階段在 `purchase_screen.dart` 中暫時將顯示金額寫死為 `NT$ 190` 與 `NT$ 990 / 年`，但不影響實際呼叫 RevenueCat SDK 的金流流程。
+   - **待修復動作**：待 App Store Connect 內購項目設定完成且 App 正式送審前，需將 `purchase_screen.dart` 的 `price` 欄位恢復為動態讀取 `package.storeProduct.priceString`。
 
 ---
 

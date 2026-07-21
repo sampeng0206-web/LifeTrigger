@@ -83,7 +83,12 @@ class PurchaseService {
 
   Future<void> checkEntitlements() async {
     try {
-      final customerInfo = await Purchases.getCustomerInfo();
+      final customerInfo = await Purchases.getCustomerInfo().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          throw Exception('Purchases.getCustomerInfo timed out.');
+        },
+      );
       await _updateEntitlements(customerInfo);
     } catch (e) {
       debugPrint('ERROR: Failed to check entitlements: $e');
@@ -101,8 +106,19 @@ class PurchaseService {
     final quota = storage.getUserQuota();
     
     // 將最新狀態寫入 Hive 本地快取
-    quota.isLocalUnlimited = localUnlimitedActive;
-    quota.isCloudGuardianActive = cloudGuardianActive;
+    // 注意：若線上回傳 false，但在 kDebugMode 下或 App Store Connect 尚未審核完畢前地端已有開啟狀態，不強行改回 false，防止測試被清空
+    if (localUnlimitedActive) {
+      quota.isLocalUnlimited = true;
+    } else if (!kDebugMode && customerInfo.entitlements.all.containsKey('local_unlimited')) {
+      quota.isLocalUnlimited = false;
+    }
+
+    if (cloudGuardianActive) {
+      quota.isCloudGuardianActive = true;
+    } else if (!kDebugMode && customerInfo.entitlements.all.containsKey('cloud_guardian')) {
+      quota.isCloudGuardianActive = false;
+    }
+
     await storage.saveUserQuota(quota);
   }
 }

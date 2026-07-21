@@ -67,6 +67,44 @@ function generateEmailHtml(payloadText: string): { subject: string; bodyHtml: st
 }
 
 /**
+ * 依據 payload 解析與渲染副本通知 HTML 信件內容 (顯示完整的原始交代訊息與共同記憶)
+ */
+function generateBackupEmailHtml(
+	message: string,
+	sharedMemory: string,
+	triggerTime: string,
+	recipientInfo: string
+): { subject: string; bodyHtml: string } {
+	const subject = "【萬一我消失】您的安心守護通知已觸發（副本通知）";
+
+	const sharedMemoryBlock = sharedMemory
+		? `
+		<div style="background-color: #f0f7ff; border-left: 4px solid #0070f3; padding: 15px; border-radius: 4px; margin: 20px 0;">
+			<strong style="color: #0070f3; display: block; margin-bottom: 5px;">🔑 只有您與設定者知道的共同回憶（身分驗證）：</strong>
+			<span style="color: #333; font-style: italic;">「 ${sharedMemory} 」</span>
+		</div>
+		`
+		: "";
+
+	const bodyHtml = `
+		<div style="font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; background-color: #ffffff;">
+			<h2 style="color: #1a1a1a; margin-top: 0; font-size: 20px;">🛡️ 安心守護 — 副本通知</h2>
+			<p style="color: #111; font-size: 15px;">您設定的安心守護通知已於 <strong>${triggerTime}</strong> 觸發，系統已將以下內容寄送給：<strong>${recipientInfo}</strong></p>
+			<hr style="border: none; border-top: 1px dashed #ccc; margin: 20px 0;" />
+			${sharedMemoryBlock}
+			<div style="background-color: #fafafa; border: 1px solid #eaeaea; padding: 20px; border-radius: 8px; margin-top: 20px;">
+				<strong style="color: #444; display: block; margin-bottom: 10px;">✉️ 原始交代訊息內容：</strong>
+				<p style="color: #111; margin: 0; white-space: pre-wrap; font-size: 15px;">${message}</p>
+			</div>
+			<hr style="border: none; border-top: 1px dashed #ccc; margin: 20px 0;" />
+			<p style="color: #ff3b30; font-weight: bold; font-size: 14px; margin-top: 20px;">提示：此信件為您為自己留存的副本備份。如果這不是您預期的情況，請盡快確認您的守護任務設定。</p>
+		</div>
+	`;
+
+	return { subject, bodyHtml };
+}
+
+/**
  * 驗證 RevenueCat 使用者是否有 cloud_guardian 訂閱權限
  */
 async function checkUserEntitlement(userId: string, env: Env): Promise<boolean> {
@@ -196,27 +234,13 @@ async function processScheduledTriggers(env: Env): Promise<{ processed: number; 
 
 			if (userEmail && userEmail.trim().length > 0) {
 				const triggerTime = new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
-				const backupSubject = "【萬一我消失】您的安心守護通知已觸發";
-				const memoryBlockHtml = memoryText ? `
-						<div style="margin-bottom: 15px;">
-							<strong style="color: #444; display: block; margin-bottom: 5px;">共同記憶：</strong>
-							<p style="color: #111; margin: 0; white-space: pre-wrap; font-size: 15px; background: #fafafa; padding: 12px; border-radius: 6px; border: 1px solid #eaeaea;">${memoryText}</p>
-						</div>
-				` : "";
-				const backupBody = `
-					<div style="font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; background-color: #ffffff;">
-						<h2 style="color: #1a1a1a; margin-top: 0; font-size: 20px;">🛡️ 安心守護 — 副本通知</h2>
-						<p style="color: #111; font-size: 15px;">您設定的安心守護通知已於 <strong>${triggerTime}</strong> 觸發，系統已將以下內容寄送給：<strong>${recipientNames || trigger.recipient_emails}</strong></p>
-						<hr style="border: none; border-top: 1px dashed #ccc; margin: 20px 0;" />
-						<div style="margin-bottom: 15px;">
-							<strong style="color: #444; display: block; margin-bottom: 5px;">訊息內容：</strong>
-							<p style="color: #111; margin: 0; white-space: pre-wrap; font-size: 15px; background: #fafafa; padding: 12px; border-radius: 6px; border: 1px solid #eaeaea;">${msgText}</p>
-						</div>
-						${memoryBlockHtml}
-						<hr style="border: none; border-top: 1px dashed #ccc; margin: 20px 0;" />
-						<p style="color: #ff3b30; font-weight: bold; font-size: 14px; margin-top: 20px;">如果這不是您預期的情況，請盡快確認您的守護任務設定。</p>
-					</div>
-				`;
+				const { subject: backupSubject, bodyHtml: backupBody } = generateBackupEmailHtml(
+					msgText,
+					memoryText,
+					triggerTime,
+					recipientNames || trigger.recipient_emails
+				);
+
 				try {
 					await sendEmail({
 						from: SENDER_EMAIL,
@@ -385,27 +409,13 @@ export default {
 					let backupSuccess = false;
 					if (user_email && user_email.trim().length > 0) {
 						const triggerTime = new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
-						const backupSubject = "【萬一我消失】您的安心守護通知已觸發";
-						const memoryBlockHtml = shared_memory ? `
-								<div style="margin-bottom: 15px;">
-									<strong style="color: #444; display: block; margin-bottom: 5px;">共同記憶：</strong>
-									<p style="color: #111; margin: 0; white-space: pre-wrap; font-size: 15px; background: #fafafa; padding: 12px; border-radius: 6px; border: 1px solid #eaeaea;">${shared_memory}</p>
-								</div>
-						` : "";
-						const backupBody = `
-							<div style="font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; background-color: #ffffff;">
-								<h2 style="color: #1a1a1a; margin-top: 0; font-size: 20px;">🛡️ 安心守護 — 副本通知</h2>
-								<p style="color: #111; font-size: 15px;">您設定的安心守護通知已於 <strong>${triggerTime}</strong> 觸發，系統已將以下內容寄送給：<strong>${recipient_names || recipient_emails}</strong></p>
-								<hr style="border: none; border-top: 1px dashed #ccc; margin: 20px 0;" />
-								<div style="margin-bottom: 15px;">
-									<strong style="color: #444; display: block; margin-bottom: 5px;">訊息內容：</strong>
-									<p style="color: #111; margin: 0; white-space: pre-wrap; font-size: 15px; background: #fafafa; padding: 12px; border-radius: 6px; border: 1px solid #eaeaea;">${message}</p>
-								</div>
-								${memoryBlockHtml}
-								<hr style="border: none; border-top: 1px dashed #ccc; margin: 20px 0;" />
-								<p style="color: #ff3b30; font-weight: bold; font-size: 14px; margin-top: 20px;">如果這不是您預期的情況，請盡快確認您的守護任務設定。</p>
-							</div>
-						`;
+						const { subject: backupSubject, bodyHtml: backupBody } = generateBackupEmailHtml(
+							message,
+							shared_memory || "",
+							triggerTime,
+							recipient_names || recipient_emails
+						);
+
 						try {
 							await sendEmail({
 								from: SENDER_EMAIL,

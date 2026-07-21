@@ -186,9 +186,10 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
                 const SizedBox(height: 30),
                 
                 // 方案 1: 安心版 (買斷)
+                // TODO: App Store Connect內購項目設定完成、正式送審後，需改回動態抓取RevenueCat priceString，此為暫時性顯示調整
                 _buildPlanCard(
                   title: '安心版（本機解鎖）',
-                  price: lifetimePackage?.storeProduct.priceString ?? 'NT\$ 190',
+                  price: 'NT\$ 190',
                   subtitle: '一次性付費・永久買斷',
                   description: '解鎖本機端無限次安心守護排程。防呆確認時間最長支援 7 天，無廣告打擾。',
                   color: Colors.blueAccent,
@@ -209,9 +210,10 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
                 const SizedBox(height: 20),
 
                 // 方案 2: 守護版 (年費訂閱)
+                // TODO: App Store Connect內購項目設定完成、正式送審後，需改回動態抓取RevenueCat priceString，此為暫時性顯示調整
                 _buildPlanCard(
                   title: '守護版（雲端備份年訂閱）',
-                  price: annualPackage?.storeProduct.priceString ?? 'NT\$ 990 / 年',
+                  price: 'NT\$ 990 / 年',
                   subtitle: '自動續訂・雲端安心防護',
                   description: '解鎖無限次安心守護排程（最高支援 365 天間隔）。包含安全雲端備份服務與自動化健康檢查，無廣告打擾。',
                   color: Colors.teal,

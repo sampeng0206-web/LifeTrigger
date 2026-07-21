@@ -353,12 +353,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   }
 
   Future<void> _triggerManualRestore(BuildContext context) async {
+    BuildContext? checkDialogContext;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (dialogContext) {
+        checkDialogContext = dialogContext;
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      },
     );
 
     try {
@@ -366,69 +370,84 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     } catch (e) {
       debugPrint('Error checking entitlements: $e');
     } finally {
-      if (context.mounted) {
-        Navigator.pop(context); // 關閉 loading
+      if (checkDialogContext != null && checkDialogContext!.mounted) {
+        Navigator.pop(checkDialogContext!); // 關閉 loading
       }
     }
 
-    final quota = ref.read(storageServiceProvider).getUserQuota();
+    final storage = ref.read(storageServiceProvider);
+    final quota = storage.getUserQuota();
+    
+    // 【測試階段特別放寬】若 App Store Connect 尚未審核完畢或處於測試模式，自動放寬權限允許測試還原
     if (!quota.isCloudGuardianActive) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          backgroundColor: Colors.grey[900],
-          title: const Text('權限不足', style: TextStyle(color: Colors.white)),
-          content: const Text('從雲端還原守護資料為「交代守護版」專屬功能。請先升級您的訂閱方案。'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('確認'),
-            ),
-          ],
-        ),
-      );
-      return;
+      if (kDebugMode) {
+        quota.isCloudGuardianActive = true;
+        await storage.saveUserQuota(quota);
+      } else {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: Colors.grey[900],
+            title: const Text('權限不足', style: TextStyle(color: Colors.white)),
+            content: const Text('從雲端還原守護資料為「交代守護版」專屬功能。請先升級您的訂閱方案。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('確認'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
     }
 
-    _performRestore(context);
+    if (context.mounted) {
+      _performRestore(context);
+    }
   }
 
   Future<void> _performRestore(BuildContext context) async {
     bool isCancelled = false;
+    bool isLoaderShowing = true;
+    BuildContext? loaderDialogContext;
 
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (dialogContext) => PopScope(
-        onPopInvokedWithResult: (didPop, result) {
-          isCancelled = true;
-        },
-        child: AlertDialog(
-          backgroundColor: Colors.grey[900],
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              SizedBox(height: 12),
-              CircularProgressIndicator(),
-              SizedBox(height: 20),
-              Text(
-                '正在從雲端載入守護資料...',
-                style: TextStyle(color: Colors.white, fontSize: 14),
+      builder: (dialogContext) {
+        loaderDialogContext = dialogContext;
+        return PopScope(
+          onPopInvokedWithResult: (didPop, result) {
+            isCancelled = true;
+          },
+          child: AlertDialog(
+            backgroundColor: Colors.grey[900],
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                SizedBox(height: 12),
+                CircularProgressIndicator(),
+                SizedBox(height: 20),
+                Text(
+                  '正在從雲端載入守護資料...',
+                  style: TextStyle(color: Colors.white, fontSize: 14),
+                ),
+                SizedBox(height: 8),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  isCancelled = true;
+                  Navigator.pop(dialogContext);
+                },
+                child: const Text('取消', style: TextStyle(color: Colors.grey)),
               ),
-              SizedBox(height: 8),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                isCancelled = true;
-                Navigator.pop(dialogContext);
-              },
-              child: const Text('取消', style: TextStyle(color: Colors.grey)),
-            ),
-          ],
-        ),
-      ),
+        );
+      },
     );
 
     List<Map<String, dynamic>>? cloudTriggers;
@@ -447,11 +466,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       debugPrint('ERROR: Exception during restoreCloudTriggers: $e');
       cloudTriggers = null;
     } finally {
-      if (context.mounted && ModalRoute.of(context)?.isCurrent != true) {
-        // 安全關閉 Loading Dialog
-        try {
-          Navigator.pop(context);
-        } catch (_) {}
+      // 無論成功、失敗、逾時或異常，100% 確保關閉 Loading 對話框
+      if (isLoaderShowing) {
+        isLoaderShowing = false;
+        if (loaderDialogContext != null && loaderDialogContext!.mounted) {
+          try {
+            Navigator.pop(loaderDialogContext!);
+          } catch (_) {}
+        }
+      }
+      // 強制刷新 activeTriggersProvider，確保 UI 100% 潔淨重置
+      if (context.mounted) {
+        ref.read(activeTriggersProvider.notifier).refresh();
       }
     }
 
@@ -461,17 +487,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     }
 
     if (cloudTriggers == null) {
-      _showResultDialog(context, '還原失敗', '讀取超時或連線失敗。請確認您的網路連線，或稍後再試。');
+      if (context.mounted) {
+        _showResultDialog(context, '雲端還原失敗', '雲端還原失敗，本次未載入任何資料。請確認您的網路連線，或稍後再試。');
+      }
       return;
     }
 
     if (cloudTriggers.isEmpty) {
-      _showResultDialog(context, '無雲端資料', '目前沒有可還原的雲端守護紀錄。');
+      if (context.mounted) {
+        _showResultDialog(context, '無雲端資料', '目前沒有可還原的雲端守護紀錄。');
+      }
       return;
     }
 
     // 顯示雲端 Trigger 列表供使用者選擇
-    _showSelectTriggersDialog(context, cloudTriggers);
+    if (context.mounted) {
+      _showSelectTriggersDialog(context, cloudTriggers);
+    }
   }
 
   void _showResultDialog(BuildContext context, String title, String content) {

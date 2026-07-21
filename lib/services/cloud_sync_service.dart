@@ -146,7 +146,7 @@ class CloudSyncService {
     }
 
     final client = HttpClient();
-    client.connectionTimeout = const Duration(seconds: 10);
+    client.connectionTimeout = const Duration(seconds: 8);
 
     try {
       // 1. 取得 RevenueCat App User ID (加上 8 秒超時保護)
@@ -162,14 +162,30 @@ class CloudSyncService {
         return null;
       }
 
-      // 2. 發送 HTTPS GET 請求
+      // 2. 發送 HTTPS GET 請求 (加上 10 秒超時保護)
       final uri = Uri.parse('$baseUrl/api/triggers/restore?user_id=${Uri.encodeComponent(userId)}');
-      final request = await client.getUrl(uri);
+      final request = await client.getUrl(uri).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('client.getUrl request timed out.');
+        },
+      );
       
       request.headers.set('X-API-Key', apiAuthKey);
 
-      final response = await request.close();
-      final responseBody = await response.transform(utf8.decoder).join();
+      final response = await request.close().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('request.close() timed out.');
+        },
+      );
+
+      final responseBody = await response.transform(utf8.decoder).join().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('Reading response body timed out.');
+        },
+      );
 
       debugPrint('LOG: CloudSyncService restore response status: ${response.statusCode}');
 
