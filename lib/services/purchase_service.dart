@@ -105,19 +105,9 @@ class PurchaseService {
     final storage = _ref.read(storageServiceProvider);
     final quota = storage.getUserQuota();
     
-    // 將最新狀態寫入 Hive 本地快取
-    // 注意：若線上回傳 false，但在 kDebugMode 下或 App Store Connect 尚未審核完畢前地端已有開啟狀態，不強行改回 false，防止測試被清空
-    if (localUnlimitedActive) {
-      quota.isLocalUnlimited = true;
-    } else if (!kDebugMode && customerInfo.entitlements.all.containsKey('local_unlimited')) {
-      quota.isLocalUnlimited = false;
-    }
-
-    if (cloudGuardianActive) {
-      quota.isCloudGuardianActive = true;
-    } else if (!kDebugMode && customerInfo.entitlements.all.containsKey('cloud_guardian')) {
-      quota.isCloudGuardianActive = false;
-    }
+    // 忠實反映線上 RevenueCat Entitlement 授權狀態：線上為 true 寫入 true，過期/取消為 false 則寫入 false
+    quota.isLocalUnlimited = localUnlimitedActive;
+    quota.isCloudGuardianActive = cloudGuardianActive;
 
     await storage.saveUserQuota(quota);
   }
