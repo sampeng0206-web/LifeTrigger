@@ -816,6 +816,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
     }
 
     final duration = _getSelectedDuration();
+    final requiresCloud = duration > const Duration(days: 7);
     final hours = duration.inHours;
     final minutes = duration.inMinutes % 60;
 
@@ -830,16 +831,23 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            '請確認以下資訊正確無誤。啟動後，防呆計時器將開始運作。',
+            '請確認以下守護設定是否正確。啟動後，系統會開始倒數。',
             style: TextStyle(fontSize: 14, color: Colors.grey[400]),
           ),
           const SizedBox(height: 24),
-          _buildPreviewContainer(
+          
+          // 預覽卡片
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey[800]!),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildPreviewRow('聯絡對象', '${_recipientNameController.text} (${_getRelationshipText(_selectedRelationship)})'),
-                const Divider(color: Colors.grey, height: 24),
                 _buildPreviewRow('通知 Email', _recipientEmailController.text),
                 const Divider(color: Colors.grey, height: 24),
                 _buildPreviewRow('安全確認間隔', '$hours 小時 $minutes 分鐘'),
@@ -859,18 +867,20 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.redAccent.withOpacity(0.1),
+              color: requiresCloud ? Colors.redAccent.withOpacity(0.1) : Colors.amberAccent.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+              border: Border.all(color: requiresCloud ? Colors.redAccent.withOpacity(0.3) : Colors.amberAccent.withOpacity(0.3)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 20),
+                Icon(Icons.warning_amber_rounded, color: requiresCloud ? Colors.redAccent : Colors.amberAccent, size: 20),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '請勿刪除本App。刪除後將無法在此裝置上查看或管理此任務，但只要伺服器排程持續運作，通知仍會於到期時準時寄出。任務寄出後，伺服器上的內容資料將被清除，我們不會長期保留您的信件內容。',
+                    requiresCloud
+                        ? '請勿刪除本App。刪除後將無法在此裝置上查看或管理此任務，但只要伺服器排程持續運作，通知仍會於到期時準時寄出。任務寄出後，伺服器上的內容資料將被清除，我們不會長期保留您的信件內容。'
+                        : '本任務僅儲存於您的手機本機，若刪除App，此任務將完全消失，屆時將不會寄出任何通知，請務必保留App直到任務完成或您已手動確認安全。',
                     style: TextStyle(fontSize: 13, color: Colors.grey[300], height: 1.4),
                   ),
                 ),
@@ -889,18 +899,6 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
     );
   }
 
-  Widget _buildPreviewContainer({required Widget child}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.grey[900]?.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[800]!),
-      ),
-      child: child,
-    );
-  }
 
   Widget _buildPreviewRow(String label, String value) {
     return Row(
