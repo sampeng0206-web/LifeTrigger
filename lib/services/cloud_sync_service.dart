@@ -49,6 +49,7 @@ class CloudSyncService {
         debugPrint('ERROR: CloudSyncService: RevenueCat User ID is empty.');
         return false;
       }
+      final originalPurchaseDate = customerInfo.entitlements.all['cloud_guardian']?.originalPurchaseDate;
 
       // 2. 彙整收件人 Email (多個以逗號隔開) 與姓名
       final storage = _ref.read(storageServiceProvider);
@@ -107,6 +108,7 @@ class CloudSyncService {
         'is_active': trigger.isActive ? 1 : 0,
         'requires_cloud': trigger.requiresCloud ? 1 : 0,
         'status': statusStr,
+        'original_purchase_date': originalPurchaseDate,
         'payload': {
           'message': trigger.message,
           'shared_memory': trigger.sharedMemoryPrompt,
@@ -166,9 +168,14 @@ class CloudSyncService {
         debugPrint('ERROR: CloudSyncService: RevenueCat User ID is empty for restore.');
         return null;
       }
+      final originalPurchaseDate = customerInfo.entitlements.all['cloud_guardian']?.originalPurchaseDate;
 
       // 2. 發送 HTTPS GET 請求 (加上 10 秒超時保護)
-      final uri = Uri.parse('$baseUrl/api/triggers/restore?user_id=${Uri.encodeComponent(userId)}');
+      var restoreUrl = '$baseUrl/api/triggers/restore?user_id=${Uri.encodeComponent(userId)}';
+      if (originalPurchaseDate != null && originalPurchaseDate.isNotEmpty) {
+        restoreUrl += '&original_purchase_date=${Uri.encodeComponent(originalPurchaseDate)}';
+      }
+      final uri = Uri.parse(restoreUrl);
       final request = await client.getUrl(uri).timeout(
         const Duration(seconds: 10),
         onTimeout: () {

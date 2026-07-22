@@ -8,8 +8,10 @@ CREATE TABLE IF NOT EXISTS cloud_triggers (
   requires_cloud INTEGER NOT NULL DEFAULT 1,
   status TEXT NOT NULL DEFAULT 'waiting',
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  original_purchase_date TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_trigger_lookup ON cloud_triggers (is_active, requires_cloud, deadline);
 CREATE INDEX IF NOT EXISTS idx_trigger_user ON cloud_triggers (user_id);
+CREATE INDEX IF NOT EXISTS idx_trigger_purchase ON cloud_triggers (original_purchase_date);

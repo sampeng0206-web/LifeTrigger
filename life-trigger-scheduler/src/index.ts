@@ -21,6 +21,7 @@ interface TriggerRow {
 	status: string;
 	created_at: string;
 	updated_at: string;
+	original_purchase_date?: string | null;
 }
 
 /**
@@ -316,7 +317,7 @@ export default {
 			if (url.pathname === "/api/triggers" && request.method === "POST") {
 				try {
 					const body: any = await request.json();
-					const { id, user_id, recipient_emails, deadline, is_active, requires_cloud, status, payload } = body;
+					const { id, user_id, recipient_emails, deadline, is_active, requires_cloud, status, payload, original_purchase_date } = body;
 
 					if (!id || !user_id || !recipient_emails || !deadline || !payload) {
 						return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -348,8 +349,9 @@ export default {
 					await env.DB.prepare(`
 						INSERT OR REPLACE INTO cloud_triggers (
 							id, user_id, encrypted_payload, recipient_emails, deadline,
-							is_active, requires_cloud, status, created_at, updated_at
-						) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+							is_active, requires_cloud, status, created_at, updated_at,
+							original_purchase_date
+						) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 					`).bind(
 						id,
 						user_id,
@@ -360,7 +362,8 @@ export default {
 						requiresCloudVal,
 						statusVal,
 						now,
-						now
+						now,
+						original_purchase_date || null
 					).run();
 
 					return new Response(JSON.stringify({ success: true, message: "Trigger saved successfully" }), {
@@ -509,6 +512,7 @@ export default {
 			if (url.pathname === "/api/triggers/restore" && request.method === "GET") {
 				try {
 					const userId = url.searchParams.get("user_id");
+					const originalPurchaseDate = url.searchParams.get("original_purchase_date");
 					if (!userId) {
 						return new Response(JSON.stringify({ error: "Missing 'user_id' parameter" }), {
 							status: 400,
@@ -525,14 +529,41 @@ export default {
 						});
 					}
 
-					// 查詢該使用者底下所有 active 的 triggers
-					const { results } = await env.DB.prepare(`
-						SELECT * FROM cloud_triggers 
-						WHERE user_id = ? AND is_active = 1
-					`).bind(userId).all<TriggerRow>();
+					let dbRows: TriggerRow[] = [];
+
+					// 1. 如果有提供 original_purchase_date，優先用其查詢並更新 user_id
+					if (originalPurchaseDate && originalPurchaseDate.trim().length > 0) {
+						console.log(`[Restore] Querying by original_purchase_date: ${originalPurchaseDate}`);
+						const dbRes = await env.DB.prepare(`
+							SELECT * FROM cloud_triggers 
+							WHERE original_purchase_date = ? AND is_active = 1
+						`).bind(originalPurchaseDate).all<TriggerRow>();
+						
+						dbRows = dbRes.results || [];
+
+						if (dbRows.length > 0) {
+							console.log(`[Restore] Found ${dbRows.length} triggers by original_purchase_date. Updating their user_id to ${userId}...`);
+							const now = new Date().toISOString();
+							await env.DB.prepare(`
+								UPDATE cloud_triggers 
+								SET user_id = ?, updated_at = ? 
+								WHERE original_purchase_date = ? AND is_active = 1
+							`).bind(userId, now, originalPurchaseDate).run();
+						}
+					}
+
+					// 2. 如果沒提供或沒查到，則 fallback 依 user_id 查詢
+					if (dbRows.length === 0) {
+						console.log(`[Restore] Fallback: Querying by user_id: ${userId}`);
+						const dbRes = await env.DB.prepare(`
+							SELECT * FROM cloud_triggers 
+							WHERE user_id = ? AND is_active = 1
+						`).bind(userId).all<TriggerRow>();
+						dbRows = dbRes.results || [];
+					}
 
 					const restoredTriggers = [];
-					for (const row of results) {
+					for (const row of dbRows) {
 						let decryptedPayload = row.encrypted_payload;
 						if (env.ENCRYPTION_KEY) {
 							try {
