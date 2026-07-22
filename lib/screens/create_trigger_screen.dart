@@ -268,9 +268,9 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
             context: context,
             builder: (context) => AlertDialog(
               backgroundColor: Colors.grey[900],
-              title: const Text('雲端同步失敗', style: TextStyle(color: Colors.white)),
+              title: const Text('同步失敗', style: TextStyle(color: Colors.white)),
               content: const Text(
-                '無法將此守護上傳至雲端伺服器，請檢查您的網路連線後重試。',
+                '無法將此守護上傳至伺服器，請檢查您的網路連線後重試。',
                 style: TextStyle(color: Colors.grey),
               ),
               actions: [
@@ -524,7 +524,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
     String schemeLabel = '';
     Color schemeColor = Colors.grey;
     if (quota.isCloudGuardianActive) {
-      schemeLabel = '目前方案：守護版（雲端守護，無限次建立）';
+      schemeLabel = '目前方案：守護版（無限次建立）';
       schemeColor = Colors.tealAccent[400]!;
     } else if (quota.isLocalUnlimited) {
       schemeLabel = '目前方案：安心版（本機解鎖，無限次建立）';
@@ -716,9 +716,9 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
                       const SizedBox(height: 16),
                       _buildComparisonRow('守護天期', '最長 7 天', '最長 365 天'),
                       const Divider(color: Colors.grey, height: 20, thickness: 0.5),
-                      _buildComparisonRow('保管方式', '手機本地資料', '雲端安全備份'),
+                      _buildComparisonRow('保管方式', '手機本地資料', '安全備份'),
                       const Divider(color: Colors.grey, height: 20, thickness: 0.5),
-                      _buildComparisonRow('手機損毀', '無法發送通知', '雲端排程自動送達'),
+                      _buildComparisonRow('手機損毀', '無法發送通知', '排程自動送達'),
                       const SizedBox(height: 20),
                       SizedBox(
                         width: double.infinity,
@@ -851,6 +851,28 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
                 Text(
                   _messageController.text,
                   style: const TextStyle(fontSize: 15, color: Colors.white, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.redAccent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '請勿刪除本App。刪除後將無法在此裝置上查看或管理此任務，但只要伺服器排程持續運作，通知仍會於到期時準時寄出。任務寄出後，伺服器上的內容資料將被清除，我們不會長期保留您的信件內容。',
+                    style: TextStyle(fontSize: 13, color: Colors.grey[300], height: 1.4),
+                  ),
                 ),
               ],
             ),

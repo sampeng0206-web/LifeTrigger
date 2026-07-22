@@ -26,7 +26,7 @@ class CloudSyncService {
       baseUrl.isNotEmpty &&
       !baseUrl.contains('YOUR_CLOUDFLARE_WORKER_URL_HERE');
 
-  /// 上傳 / 更新雲端上的 Trigger 資料
+  /// 上傳 / 更新伺服器上的 Trigger 資料
   Future<bool> uploadCloudTrigger(Trigger trigger, {String? userEmail}) async {
     if (!isConfigured) {
       debugPrint('WARNING: CloudSyncService: baseUrl is not configured. Bypassing upload.');
@@ -145,77 +145,6 @@ class CloudSyncService {
     }
   }
 
-  /// 從雲端下載並還原該使用者的 Trigger 資料
-  Future<List<Map<String, dynamic>>?> restoreCloudTriggers() async {
-    if (!isConfigured) {
-      debugPrint('WARNING: CloudSyncService: baseUrl is not configured. Bypassing restore.');
-      return null;
-    }
-
-    final client = HttpClient();
-    client.connectionTimeout = const Duration(seconds: 8);
-
-    try {
-      // 1. 取得 RevenueCat App User ID (加上 8 秒超時保護)
-      final customerInfo = await Purchases.getCustomerInfo().timeout(
-        const Duration(seconds: 8),
-        onTimeout: () {
-          throw Exception('RevenueCat User ID query timed out.');
-        },
-      );
-      final userId = customerInfo.originalAppUserId;
-      if (userId.isEmpty) {
-        debugPrint('ERROR: CloudSyncService: RevenueCat User ID is empty for restore.');
-        return null;
-      }
-      final originalPurchaseDate = customerInfo.entitlements.all['cloud_guardian']?.originalPurchaseDate;
-
-      // 2. 發送 HTTPS GET 請求 (加上 10 秒超時保護)
-      var restoreUrl = '$baseUrl/api/triggers/restore?user_id=${Uri.encodeComponent(userId)}';
-      if (originalPurchaseDate != null && originalPurchaseDate.isNotEmpty) {
-        restoreUrl += '&original_purchase_date=${Uri.encodeComponent(originalPurchaseDate)}';
-      }
-      final uri = Uri.parse(restoreUrl);
-      final request = await client.getUrl(uri).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw Exception('client.getUrl request timed out.');
-        },
-      );
-      
-      request.headers.set('X-API-Key', apiAuthKey);
-
-      final response = await request.close().timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw Exception('request.close() timed out.');
-        },
-      );
-
-      final responseBody = await response.transform(utf8.decoder).join().timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw Exception('Reading response body timed out.');
-        },
-      );
-
-      debugPrint('LOG: CloudSyncService restore response status: ${response.statusCode}');
-
-      if (response.statusCode == 200) {
-        final resJson = jsonDecode(responseBody);
-        if (resJson['success'] == true && resJson['triggers'] != null) {
-          final list = List<Map<String, dynamic>>.from(resJson['triggers']);
-          return list;
-        }
-      }
-      return null;
-    } catch (e) {
-      debugPrint('ERROR: CloudSyncService restore failed: $e');
-      return null;
-    } finally {
-      client.close();
-    }
-  }
 
   /// 地端觸發逾期時，發送 API 請求給 Cloudflare Worker 以寄信
   Future<bool> sendLocalTriggerEmail({
@@ -288,7 +217,7 @@ class CloudSyncService {
     }
   }
 
-  /// 雲端模式下，同步通知 Worker 取消該守護任務
+  /// 同步通知 Worker 取消該守護任務
   Future<bool> cancelCloudTrigger(String triggerId) async {
     if (!isConfigured) {
       debugPrint('WARNING: CloudSyncService: baseUrl is not configured. Bypassing cloud cancellation.');

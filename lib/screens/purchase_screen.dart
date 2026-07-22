@@ -213,10 +213,10 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
                 // 方案 2: 守護版 (年費訂閱)
                 // TODO: App Store Connect內購項目設定完成、正式送審後，需改回動態抓取RevenueCat priceString，此為暫時性顯示調整
                 _buildPlanCard(
-                  title: '守護版（雲端備份年訂閱）',
+                  title: '守護版（備份年訂閱）',
                   price: 'NT\$ 990 / 年',
-                  subtitle: '自動續訂・雲端安心防護',
-                  description: '解鎖無限次安心守護排程（最高支援 365 天間隔）。包含安全雲端備份服務與自動化健康檢查，無廣告打擾。',
+                  subtitle: '自動續訂・安心防護',
+                  description: '解鎖無限次安心守護排程（最高支援 365 天間隔）。包含安全備份服務與自動化健康檢查，無廣告打擾。',
                   color: Colors.teal,
                   isSubscription: true,
                   onPressed: () {

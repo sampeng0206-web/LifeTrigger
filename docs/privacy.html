@@ -152,7 +152,7 @@
         <h2>二、強效金律加密處理機制（ENCRYPTION_KEY）</h2>
         <div class="highlight-box">
           <h3>🛡️ 全全程端對端傳輸與強效 AES-GCM 加密</h3>
-          <p>當您選擇啟用「交代守護版（雲端保管功能）」時，您設定的使用者個人 Email、訊息內文與共同記憶在寫入雲端伺服器（Cloudflare D1 資料庫）前，均會於伺服器端經由安全的高強度演算法（AES-GCM / 專屬 ENCRYPTION_KEY）進行加密儲存。傳輸過程全全程採用 HTTPS / TLS 加密通道。</p>
+          <p>當您選擇啟用「交代守護版（保管功能）」時，您設定的使用者個人 Email、訊息內文與共同記憶在寫入伺服器（Cloudflare D1 資料庫）前，均會於伺服器端經由安全的高強度演算法（AES-GCM / 專屬 ENCRYPTION_KEY）進行加密儲存。傳輸過程全程採用 HTTPS / TLS 加密通道。</p>
           <p style="margin-top: 8px;"><strong>開發者無權亦無法讀取您的明文內容</strong>：即便發生資料庫被非授權存取之極端狀況，未持有安全金鑰者亦僅能看到隨機亂碼，無法還原為文字。您的個人隱私獲得最嚴格的技術保障。</p>
         </div>
       </section>
@@ -161,7 +161,7 @@
         <h2>三、資料保存與刪除政策</h2>
         <ul>
           <li><strong>地端儲存（Hive NoSQL）</strong>：免費版及安心版之任務資料僅存於您個人手機裝置中。當您在 App 內刪除任務或移除 App 時，資料將從裝置完全抹除。</li>
-          <li><strong>雲端儲存（Cloudflare D1）</strong>：守護版雲端資料在任務完成發送或由您主動點擊「取消任務」時，雲端伺服器將同步標記並物理清理該筆資料。</li>
+          <li><strong>伺服器儲存（Cloudflare D1）</strong>：守護版資料在任務完成發送或由您主動點擊「取消任務」時，伺服器將同步標記並物理清理該筆信件內容資料，僅保留不含內容的狀態紀錄。</li>
         </ul>
       </section>
 
@@ -172,7 +172,7 @@
           <li><strong>Resend（郵件寄送服務）</strong>：當守護任務逾期觸發時，僅傳送發信所必須之收件人 Email 及信件內容以執行電子郵件寄送。</li>
           <li><strong>RevenueCat（App 內購與訂閱管理）</strong>：處理 Apple App Store 內購驗證與訂閱資格狀態同步。</li>
           <li><strong>Google AdMob（廣告服務）</strong>：針對免費版使用者提供非個人化廣告（Non-Personalized Ads）投放。當您升級為安心版或守護版後，廣告功能將自動停用。</li>
-          <li><strong>Cloudflare（雲端邊緣伺服器與資料庫）</strong>：提供安全的高效能 Cloudflare Workers API 運行環境與加密 D1 資料庫儲存。</li>
+          <li><strong>Cloudflare（邊緣伺服器與資料庫）</strong>：提供安全的高效能 Cloudflare Workers API 運行環境與加密 D1 資料庫儲存。</li>
         </ul>
       </section>
 
@@ -181,7 +181,7 @@
         <p>您對自己的個人資料享有完全的掌控權：</p>
         <ul>
           <li><strong>查詢與更新</strong>：您可隨時開啟 App 查閱或重新設定守護任務內容與收件人。</li>
-          <li><strong>撤回與刪除</strong>：您可隨時於 App 首頁點擊「取消任務」以刪除特定守護記錄。若欲要求刪除雲端伺服器上記錄之所有個人資料，請直接發送電子郵件至我們的支援信箱：<a href="mailto:sampeng0206@gmail.com" style="color: var(--accent-color);">sampeng0206@gmail.com</a>，我們將於 3 個工作天內處理完畢。</li>
+          <li><strong>撤回與刪除</strong>：您可隨時於 App 首頁點擊「取消任務」以刪除特定守護記錄。若欲要求刪除伺服器上記錄之所有個人資料，請直接發送電子郵件至我們的支援信箱：<a href="mailto:sampeng0206@gmail.com" style="color: var(--accent-color);">sampeng0206@gmail.com</a>，我們將於 3 個工作天內處理完畢。</li>
         </ul>
       </section>
 

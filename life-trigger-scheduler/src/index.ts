@@ -263,10 +263,10 @@ async function processScheduledTriggers(env: Env): Promise<{ processed: number; 
 			if (recipientEmailSuccess) {
 				await env.DB.prepare(`
 					UPDATE cloud_triggers 
-					SET status = 'delivered', updated_at = ? 
+					SET status = 'delivered', encrypted_payload = '', recipient_emails = '', updated_at = ? 
 					WHERE id = ?
 				`).bind(new Date().toISOString(), trigger.id).run();
-				console.log(`${logPrefix} Email sent successfully. Status set to 'delivered'.`);
+				console.log(`${logPrefix} Email sent successfully. Status set to 'delivered', payload cleared.`);
 				succeeded++;
 			} else {
 				await env.DB.prepare(`
@@ -476,10 +476,10 @@ export default {
 						});
 					}
 
-					// 更新 D1 資料庫中對應任務的 status 為 cancelled 且 is_active 為 0
+					// 更新 D1 資料庫中對應任務的 status 為 cancelled 且 is_active 為 0，同時清除私密內容與個資
 					await env.DB.prepare(`
 						UPDATE cloud_triggers
-						SET status = 'cancelled', is_active = 0, updated_at = ?
+						SET status = 'cancelled', is_active = 0, encrypted_payload = '', recipient_emails = '', updated_at = ?
 						WHERE id = ? AND user_id = ?
 					`).bind(new Date().toISOString(), id, user_id).run();
 

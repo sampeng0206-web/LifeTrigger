@@ -70,10 +70,10 @@ class _HelpTermsScreenState extends ConsumerState<HelpTermsScreen> {
                     ),
                     const SizedBox(height: 20),
                     
-                    _buildSectionTitle('2. 防呆天期與雲端服務'),
+                    _buildSectionTitle('2. 防呆天期與服務'),
                     _buildParagraph(
                       '・安心版（本機解鎖）：支援 1 小時至 7 天的防呆確認時間間隔。所有邏輯及通知在本地處理，免去廣告打擾。\n'
-                      '・守護版（雲端備份年訂閱）：支援最高 365 天防呆確認時間間隔。配備自動化狀態檢查與雲端安全備份。'
+                      '・守護版（備份年訂閱）：支援最高 365 天防呆確認時間間隔。配備自動化狀態檢查與安全備份。'
                     ),
                     const SizedBox(height: 20),
 
@@ -86,7 +86,7 @@ class _HelpTermsScreenState extends ConsumerState<HelpTermsScreen> {
 
                     _buildSectionTitle('4. 隱私權與資料保護'),
                     _buildParagraph(
-                      '您的所有守護訊息、收件人資料與共同記憶皆加密儲存於本地資料庫中，本公司不會在未經授權下調閱您的隱私交代。雲端備份版本僅在您主動啟用並驗證後，方對部分資料進行加密備份傳輸。'
+                      '您的所有守護訊息、收件人資料與共同記憶皆加密儲存於本地資料庫中，本公司不會在未經授權下調閱您的隱私交代。守護版本僅在您主動啟用並驗證後，方對部分資料進行加密傳輸。'
                     ),
                     const SizedBox(height: 30),
                   ],
