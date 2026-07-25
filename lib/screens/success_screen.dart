@@ -19,6 +19,10 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
   void initState() {
     super.initState();
     _loadAd();
+    // 預先載入插頁廣告
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(adServiceProvider).loadInterstitialAd();
+    });
   }
 
   void _loadAd() {
@@ -131,7 +135,13 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
               // 返回首頁按鈕
               ElevatedButton(
                 onPressed: () {
-                  context.go('/home');
+                  ref.read(adServiceProvider).showInterstitialAd(
+                    onAdClosed: () {
+                      if (context.mounted) {
+                        context.go('/home');
+                      }
+                    },
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueAccent,

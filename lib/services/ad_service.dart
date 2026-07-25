@@ -11,6 +11,10 @@ class AdService {
   final Ref _ref;
   bool _isInitialized = false;
 
+  InterstitialAd? _interstitialAd;
+  bool _isInterstitialAdLoading = false;
+  VoidCallback? _onInterstitialAdClosedAction;
+
   // ============================================================================
   // AdMob 廣告單元 ID (Banner Unit ID)
   // ============================================================================
@@ -18,8 +22,19 @@ class AdService {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       return 'ca-app-pub-3755777658581400/3591225793';
     } else {
-      // Android版尚未在AdMob後台建立正式App，此為官方測試ID，待未來Android版上線並於AdMob後台建立對應App後再替換
-      return 'ca-app-pub-3940256099942544/6300978111';
+      return 'ca-app-pub-3755777658581400/3798751531';
+    }
+  }
+
+  // ============================================================================
+  // AdMob 廣告單元 ID (Interstitial Unit ID)
+  // ============================================================================
+  static String get interstitialAdUnitId {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      // 目前 iOS 暫無正式 Interstitial ID，回傳測試 ID
+      return 'ca-app-pub-3940256099942544/4411468910';
+    } else {
+      return 'ca-app-pub-3755777658581400/9714523279';
     }
   }
 
@@ -33,6 +48,76 @@ class AdService {
       debugPrint('LOG: AdMob SDK Initialized successfully');
     } catch (e) {
       debugPrint('ERROR: Failed to initialize AdMob: $e');
+    }
+  }
+
+  /// 預先載入插頁式廣告（不論是否已購買皆可安全載入，但應由調用端判斷是否付費）
+  void loadInterstitialAd() {
+    if (!shouldShowAds()) {
+      debugPrint('LOG: User is paid, skipping Interstitial Ad loading.');
+      return;
+    }
+    if (_interstitialAd != null || _isInterstitialAdLoading) return;
+
+    _isInterstitialAdLoading = true;
+    debugPrint('LOG: Start loading Interstitial Ad...');
+    InterstitialAd.load(
+      adUnitId: interstitialAdUnitId,
+      request: const AdRequest(
+        nonPersonalizedAds: true, // 明確指定：非個人化廣告
+      ),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (ad) {
+          debugPrint('LOG: Interstitial Ad loaded successfully.');
+          _interstitialAd = ad;
+          _isInterstitialAdLoading = false;
+          _setupInterstitialCallbacks(ad);
+        },
+        onAdFailedToLoad: (error) {
+          debugPrint('ERROR: Interstitial Ad failed to load: $error');
+          _interstitialAd = null;
+          _isInterstitialAdLoading = false;
+        },
+      ),
+    );
+  }
+
+  void _setupInterstitialCallbacks(InterstitialAd ad) {
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdShowedFullScreenContent: (ad) {
+        debugPrint('LOG: Interstitial Ad showed full screen.');
+      },
+      onAdDismissedFullScreenContent: (ad) {
+        debugPrint('LOG: Interstitial Ad dismissed by user.');
+        ad.dispose();
+        _interstitialAd = null;
+        _onInterstitialAdClosedAction?.call();
+        _onInterstitialAdClosedAction = null;
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        debugPrint('ERROR: Interstitial Ad failed to show: $error');
+        ad.dispose();
+        _interstitialAd = null;
+        _onInterstitialAdClosedAction?.call();
+        _onInterstitialAdClosedAction = null;
+      },
+    );
+  }
+
+  /// 顯示插頁式廣告，如果未載入完成或使用者已購買付費方案，則直接執行回呼動作
+  void showInterstitialAd({required VoidCallback onAdClosed}) {
+    if (!shouldShowAds()) {
+      debugPrint('LOG: User is paid, skipping Interstitial Ad show.');
+      onAdClosed();
+      return;
+    }
+
+    if (_interstitialAd != null) {
+      _onInterstitialAdClosedAction = onAdClosed;
+      _interstitialAd!.show();
+    } else {
+      debugPrint('LOG: Interstitial Ad not ready, skipping.');
+      onAdClosed();
     }
   }
 
