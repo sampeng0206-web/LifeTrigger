@@ -28,3 +28,7 @@ macos/Flutter/Generated.xcconfig
 macos/Flutter/flutter_export_environment.sh
 lib/generated_plugin_registrant.dart
 scratch/
+
+# Private credentials and keystores
+/*.json
+*.keystore

@@ -8,6 +8,7 @@ export interface Env {
 	API_KEY?: string;
 	ENCRYPTION_KEY?: string;
 	REVENUECAT_API_KEY?: string;
+	REVENUECAT_WEBHOOK_AUTH?: string;
 }
 
 interface TriggerRow {
@@ -302,12 +303,146 @@ export default {
 
 		// API 認證機制安全檢查 (針對所有以 /api/ 開頭的路由)
 		if (url.pathname.startsWith("/api/")) {
-			const expectedApiKey = env.API_KEY;
-			if (expectedApiKey) {
-				const clientApiKey = request.headers.get("X-API-Key");
-				if (clientApiKey !== expectedApiKey) {
-					return new Response(JSON.stringify({ error: "Unauthorized" }), {
-						status: 401,
+			// 如果是 RevenueCat Webhook，獨立進行其 Bearer Token 驗證，排除於 X-API-Key 檢查
+			if (url.pathname === "/api/revenuecat-webhook") {
+				const expectedRcAuth = env.REVENUECAT_WEBHOOK_AUTH;
+				if (expectedRcAuth) {
+					const clientRcAuth = request.headers.get("Authorization");
+					if (clientRcAuth !== expectedRcAuth) {
+						return new Response(JSON.stringify({ error: "Unauthorized" }), {
+							status: 401,
+							headers: { "Content-Type": "application/json" }
+						});
+					}
+				}
+			} else {
+				const expectedApiKey = env.API_KEY;
+				if (expectedApiKey) {
+					const clientApiKey = request.headers.get("X-API-Key");
+					if (clientApiKey !== expectedApiKey) {
+						return new Response(JSON.stringify({ error: "Unauthorized" }), {
+							status: 401,
+							headers: { "Content-Type": "application/json" }
+						});
+					}
+				}
+			}
+
+			// POST /api/revenuecat-webhook: 接收 RevenueCat Webhook 推送
+			if (url.pathname === "/api/revenuecat-webhook" && request.method === "POST") {
+				try {
+					const body: any = await request.json();
+					const event = body.event;
+					if (!event) {
+						return new Response(JSON.stringify({ error: "Missing event object" }), {
+							status: 400,
+							headers: { "Content-Type": "application/json" }
+						});
+					}
+
+					const eventType = event.type;
+					const productId = event.product_id;
+					const appUserId = event.app_user_id;
+					const entitlementIds = event.entitlement_ids || [];
+					const purchasedAtMs = event.purchased_at_ms;
+					const originalPurchaseDateMs = event.original_purchase_date_ms;
+
+					// 只處理安心版/守護版的購買與續訂事件
+					const targetEvents = ["NON_RENEWING_PURCHASE", "INITIAL_PURCHASE", "RENEWAL"];
+					if (!targetEvents.includes(eventType)) {
+						return new Response(JSON.stringify({ success: true, message: `Ignored event type: ${eventType}` }), {
+							status: 200,
+							headers: { "Content-Type": "application/json" }
+						});
+					}
+
+					// 判斷方案類型
+					let planName = "未知方案";
+					if (entitlementIds.includes("local_unlimited")) {
+						planName = "安心版（本機解鎖）";
+					} else if (entitlementIds.includes("cloud_guardian")) {
+						planName = "守護版（備份年訂閱）";
+					} else {
+						// Fallback check by product_id names if entitlement_ids is empty
+						if (productId?.includes("lifetime") || productId?.includes("local")) {
+							planName = "安心版（本機解鎖）";
+						} else if (productId?.includes("annual") || productId?.includes("cloud")) {
+							planName = "守護版（備份年訂閱）";
+						}
+					}
+
+					// 判斷事件類型中文描述
+					let actionName = "購買";
+					if (eventType === "INITIAL_PURCHASE") {
+						actionName = "首次訂購";
+					} else if (eventType === "RENEWAL") {
+						actionName = "自動續訂";
+					} else if (eventType === "NON_RENEWING_PURCHASE") {
+						actionName = "一次性買斷";
+					}
+
+					// 格式化時間為台北時間 (UTC+8)
+					const formatTaipeiTime = (ms?: number) => {
+						if (!ms) return "無資料";
+						return new Date(ms).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" }) + " (台北時間)";
+					};
+
+					const purchaseTimeStr = formatTaipeiTime(purchasedAtMs);
+					const originalPurchaseTimeStr = formatTaipeiTime(originalPurchaseDateMs || purchasedAtMs);
+
+					// 寄信給 Sampeng
+					const subject = `【LifeTrigger 通知】有使用者${actionName}了 ${planName}！`;
+					const emailBody = `
+						<div style="font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; background-color: #ffffff;">
+							<h2 style="color: #0070f3; margin-top: 0; font-size: 20px; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px;">🎉 LifeTrigger 新訂單通知</h2>
+							<p style="color: #333; font-size: 16px;">親愛的 Sampeng，您的應用程式有新的購買活動：</p>
+							<div style="background-color: #f9f9f9; border-left: 4px solid #0070f3; padding: 15px; border-radius: 4px; margin: 20px 0;">
+								<table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+									<tr>
+										<td style="padding: 6px 0; color: #666; width: 120px;"><strong>方案類型：</strong></td>
+										<td style="padding: 6px 0; color: #111; font-weight: bold; color: #0070f3;">${planName}</td>
+									</tr>
+									<tr>
+										<td style="padding: 6px 0; color: #666;"><strong>事件類型：</strong></td>
+										<td style="padding: 6px 0; color: #111;">${actionName} (${eventType})</td>
+									</tr>
+									<tr>
+										<td style="padding: 6px 0; color: #666;"><strong>產品 ID：</strong></td>
+										<td style="padding: 6px 0; color: #111; font-family: monospace;">${productId}</td>
+									</tr>
+									<tr>
+										<td style="padding: 6px 0; color: #666;"><strong>購買時間：</strong></td>
+										<td style="padding: 6px 0; color: #111;">${purchaseTimeStr}</td>
+									</tr>
+									<tr>
+										<td style="padding: 6px 0; color: #666;"><strong>首次購買時間：</strong></td>
+										<td style="padding: 6px 0; color: #111;">${originalPurchaseTimeStr}</td>
+									</tr>
+									<tr>
+										<td style="padding: 6px 0; color: #666;"><strong>使用者匿名 ID：</strong></td>
+										<td style="padding: 6px 0; color: #111; font-size: 13px; font-family: monospace; word-break: break-all;">${appUserId}</td>
+									</tr>
+								</table>
+							</div>
+							<p style="color: #666; font-size: 13px; border-top: 1px solid #f0f0f0; padding-top: 15px; margin-top: 20px;">這是由 LifeTrigger Cloudflare Worker 自動發送的通知信件。</p>
+						</div>
+					`;
+
+					await sendEmail({
+						from: SENDER_EMAIL,
+						to: ["sampeng0206@gmail.com"],
+						subject: subject,
+						body: emailBody
+					}, env);
+
+					return new Response(JSON.stringify({ success: true, message: "Email notification sent successfully" }), {
+						status: 200,
+						headers: { "Content-Type": "application/json" }
+					});
+				} catch (err: any) {
+					console.error("Error processing RevenueCat webhook:", err);
+					return new Response(JSON.stringify({ error: `Internal Server Error: ${err.message}` }), {
+						status: 500,
 						headers: { "Content-Type": "application/json" }
 					});
 				}
@@ -608,9 +743,113 @@ export default {
 		}
 
 		// 開發模式專屬測試路由
-		if (url.pathname === "/test-email" || url.pathname === "/add-test-trigger" || url.pathname === "/trigger-cron") {
+		if (url.pathname === "/test-email" || url.pathname === "/add-test-trigger" || url.pathname === "/trigger-cron" || url.pathname === "/test-webhook-format") {
 			if (env.ENVIRONMENT !== "development") {
 				return new Response("Not Found", { status: 404 });
+			}
+
+			if (url.pathname === "/test-webhook-format") {
+				const planType = url.searchParams.get("type"); // "safe" or "guard"
+				let eventPayload: any;
+				if (planType === "safe") {
+					eventPayload = {
+						type: "NON_RENEWING_PURCHASE",
+						app_user_id: "test_anonymous_user_safe",
+						product_id: "lt_safe_lifetime",
+						purchased_at_ms: 1782000000000,
+						entitlement_ids: ["local_unlimited"],
+						store: "APP_STORE",
+						environment: "SANDBOX"
+					};
+				} else {
+					eventPayload = {
+						type: "INITIAL_PURCHASE",
+						app_user_id: "test_anonymous_user_guard",
+						product_id: "lt_guard_annual",
+						purchased_at_ms: 1782000000000,
+						original_purchase_date_ms: 1782000000000,
+						entitlement_ids: ["cloud_guardian"],
+						store: "APP_STORE",
+						environment: "SANDBOX"
+					};
+				}
+
+				const eventType = eventPayload.type;
+				const productId = eventPayload.product_id;
+				const appUserId = eventPayload.app_user_id;
+				const entitlementIds = eventPayload.entitlement_ids || [];
+				const purchasedAtMs = eventPayload.purchased_at_ms;
+				const originalPurchaseDateMs = eventPayload.original_purchase_date_ms;
+
+				let planName = "未知方案";
+				if (entitlementIds.includes("local_unlimited")) {
+					planName = "安心版（本機解鎖）";
+				} else if (entitlementIds.includes("cloud_guardian")) {
+					planName = "守護版（備份年訂閱）";
+				} else {
+					if (productId?.includes("lifetime") || productId?.includes("local")) {
+						planName = "安心版（本機解鎖）";
+					} else if (productId?.includes("annual") || productId?.includes("cloud")) {
+						planName = "守護版（備份年訂閱）";
+					}
+				}
+
+				let actionName = "購買";
+				if (eventType === "INITIAL_PURCHASE") {
+					actionName = "首次訂購";
+				} else if (eventType === "RENEWAL") {
+					actionName = "自動續訂";
+				} else if (eventType === "NON_RENEWING_PURCHASE") {
+					actionName = "一次性買斷";
+				}
+
+				const formatTaipeiTime = (ms?: number) => {
+					if (!ms) return "無資料";
+					return new Date(ms).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" }) + " (台北時間)";
+				};
+
+				const purchaseTimeStr = formatTaipeiTime(purchasedAtMs);
+				const originalPurchaseTimeStr = formatTaipeiTime(originalPurchaseDateMs || purchasedAtMs);
+
+				const subject = `【LifeTrigger 通知】有使用者${actionName}了 ${planName}！`;
+				const emailBody = `
+					<div style="font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; background-color: #ffffff;">
+						<h2 style="color: #0070f3; margin-top: 0; font-size: 20px; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px;">🎉 LifeTrigger 新訂單通知</h2>
+						<p style="color: #333; font-size: 16px;">親愛的 Sampeng，您的應用程式有新的購買活動：</p>
+						<div style="background-color: #f9f9f9; border-left: 4px solid #0070f3; padding: 15px; border-radius: 4px; margin: 20px 0;">
+							<table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+								<tr>
+									<td style="padding: 6px 0; color: #666; width: 120px;"><strong>方案類型：</strong></td>
+									<td style="padding: 6px 0; color: #111; font-weight: bold; color: #0070f3;">${planName}</td>
+								</tr>
+								<tr>
+									<td style="padding: 6px 0; color: #666;"><strong>事件類型：</strong></td>
+									<td style="padding: 6px 0; color: #111;">${actionName} (${eventType})</td>
+								</tr>
+								<tr>
+									<td style="padding: 6px 0; color: #666;"><strong>產品 ID：</strong></td>
+									<td style="padding: 6px 0; color: #111; font-family: monospace;">${productId}</td>
+								</tr>
+								<tr>
+									<td style="padding: 6px 0; color: #666;"><strong>購買時間：</strong></td>
+									<td style="padding: 6px 0; color: #111;">${purchaseTimeStr}</td>
+								</tr>
+								<tr>
+									<td style="padding: 6px 0; color: #666;"><strong>首次購買時間：</strong></td>
+									<td style="padding: 6px 0; color: #111;">${originalPurchaseTimeStr}</td>
+								</tr>
+								<tr>
+									<td style="padding: 6px 0; color: #666;"><strong>使用者匿名 ID：</strong></td>
+									<td style="padding: 6px 0; color: #111; font-size: 13px; font-family: monospace; word-break: break-all;">${appUserId}</td>
+								</tr>
+							</table>
+						</div>
+					</div>
+				`;
+
+				return new Response(JSON.stringify({ planName, actionName, subject, emailBody }), {
+					headers: { "Content-Type": "application/json" }
+				});
 			}
 
 			if (url.pathname === "/test-email") {

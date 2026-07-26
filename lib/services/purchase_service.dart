@@ -14,7 +14,8 @@ class PurchaseService {
   // ============================================================================
   // RevenueCat Public API Key 常數 (常態版控，供使用者在編輯器中修改)
   // ============================================================================
-  static const String publicApiKey = 'appl_effyfdKsGHqFTeTCLxZahhrlTqe';
+  static const String iosPublicApiKey = 'appl_effyfdKsGHqFTeTCLxZahhrlTqe';
+  static const String androidPublicApiKey = 'goog_IkdLmwgnpFZuxJDKCiUkmHEmJEg';
 
   PurchaseService(this._ref);
 
@@ -25,9 +26,9 @@ class PurchaseService {
       
       PurchasesConfiguration configuration;
       if (defaultTargetPlatform == TargetPlatform.iOS) {
-        configuration = PurchasesConfiguration(publicApiKey);
+        configuration = PurchasesConfiguration(iosPublicApiKey);
       } else if (defaultTargetPlatform == TargetPlatform.android) {
-        configuration = PurchasesConfiguration(publicApiKey);
+        configuration = PurchasesConfiguration(androidPublicApiKey);
       } else {
         return;
       }

@@ -85,7 +85,7 @@ workflows:
     environment:
       android_signing:
         - lifetrigger_keystore
-      flutter: 3.27.4
+      flutter: 3.44.5
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
