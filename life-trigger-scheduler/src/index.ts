@@ -346,6 +346,15 @@ export default {
 					const entitlementIds = event.entitlement_ids || [];
 					const purchasedAtMs = event.purchased_at_ms;
 					const originalPurchaseDateMs = event.original_purchase_date_ms;
+					const environment = event.environment;
+
+					// 忽略測試環境 (SANDBOX) 的事件，避免收到測試續訂信件
+					if (environment === "SANDBOX") {
+						return new Response(JSON.stringify({ success: true, message: "Ignored sandbox event" }), {
+							status: 200,
+							headers: { "Content-Type": "application/json" }
+						});
+					}
 
 					// 只處理安心版/守護版的購買與續訂事件
 					const targetEvents = ["NON_RENEWING_PURCHASE", "INITIAL_PURCHASE", "RENEWAL"];
