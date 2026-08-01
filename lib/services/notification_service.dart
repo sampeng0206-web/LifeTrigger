@@ -6,59 +6,71 @@ import 'package:uuid/uuid.dart';
 import '../models/trigger.dart' hide Importance;
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
-  return NotificationService();
+  return NotificationService(ref);
 });
 
 class NotificationService {
+  final Ref? _ref;
   final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
+
+  NotificationService([this._ref]);
 
   String generateUuid() {
     return const Uuid().v4();
   }
 
   Future<void> init() async {
-    tz.initializeTimeZones();
-    // Default local timezone to Asia/Taipei
     try {
-      tz.setLocalLocation(tz.getLocation('Asia/Taipei'));
-    } catch (_) {
-      // Fallback
+      tz.initializeTimeZones();
+      // Default local timezone to Asia/Taipei
+      try {
+        tz.setLocalLocation(tz.getLocation('Asia/Taipei'));
+      } catch (_) {
+        // Fallback
+      }
+
+      const AndroidInitializationSettings initializationSettingsAndroid =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
+
+      const DarwinInitializationSettings initializationSettingsIOS =
+          DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
+
+      const InitializationSettings initializationSettings = InitializationSettings(
+        android: initializationSettingsAndroid,
+        iOS: initializationSettingsIOS,
+      );
+
+      await _notificationsPlugin.initialize(
+        initializationSettings,
+      );
+
+      // Request permissions on Android 13+ and iOS
+      await _notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+
+      await _notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+    } catch (e) {
+      debugPrint('ERROR: Failed to initialize NotificationService: $e');
+      if (_ref != null) {
+        try {
+          await _ref!.read(storageServiceProvider).saveLastError('NotificationService Init Error: $e');
+        } catch (_) {}
+      }
     }
-
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    const DarwinInitializationSettings initializationSettingsIOS =
-        DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
-    );
-
-    await _notificationsPlugin.initialize(
-      initializationSettings,
-    );
-
-    // Request permissions on Android 13+ and iOS
-    await _notificationsPlugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
-
-    await _notificationsPlugin
-        .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>()
-        ?.requestPermissions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
   }
 
   List<Duration> calculateWarningOffsets(Duration totalDuration) {

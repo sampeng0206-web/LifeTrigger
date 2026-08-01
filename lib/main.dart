@@ -19,13 +19,13 @@ void main() async {
   // Initialize a container to read providers before running the app
   final container = ProviderContainer();
 
-  // 1. Initialize Notification Service
-  final notificationService = container.read(notificationServiceProvider);
-  await notificationService.init();
-
-  // 2. Initialize Storage Service
+  // 1. Initialize Storage Service (foundation for logging/diagnostics)
   final storageService = container.read(storageServiceProvider);
   await storageService.init();
+
+  // 2. Initialize Notification Service
+  final notificationService = container.read(notificationServiceProvider);
+  await notificationService.init();
 
   // 3. Initialize RevenueCat Purchase Service
   final purchaseService = container.read(purchaseServiceProvider);
@@ -36,7 +36,14 @@ void main() async {
   await adService.init();
 
   // 5. Check for overdue triggers upon launch
-  await storageService.checkOverdueTriggers();
+  try {
+    await storageService.checkOverdueTriggers();
+  } catch (e) {
+    debugPrint('ERROR: Failed checking overdue triggers on launch: $e');
+    try {
+      await storageService.saveLastError('CheckOverdueTriggers Error: $e');
+    } catch (_) {}
+  }
 
   runApp(
     UncontrolledProviderScope(

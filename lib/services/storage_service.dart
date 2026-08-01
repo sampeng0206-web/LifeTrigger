@@ -52,28 +52,40 @@ class StorageService {
   StorageService(this._ref);
 
   Future<void> init() async {
-    await Hive.initFlutter();
+    try {
+      await Hive.initFlutter();
 
-    // Register TypeAdapters
-    _registerAdapterSafe(TriggerModeAdapter());
-    _registerAdapterSafe(DeliveryMethodAdapter());
-    _registerAdapterSafe(ImportanceAdapter());
-    _registerAdapterSafe(TriggerStatusAdapter());
-    _registerAdapterSafe(FailureReasonAdapter());
-    _registerAdapterSafe(TriggerAdapter());
-    _registerAdapterSafe(RelationshipAdapter());
-    _registerAdapterSafe(RecipientAdapter());
-    _registerAdapterSafe(UserQuotaAdapter());
-    _registerAdapterSafe(DurationAdapter());
+      // Register TypeAdapters
+      _registerAdapterSafe(TriggerModeAdapter());
+      _registerAdapterSafe(DeliveryMethodAdapter());
+      _registerAdapterSafe(ImportanceAdapter());
+      _registerAdapterSafe(TriggerStatusAdapter());
+      _registerAdapterSafe(FailureReasonAdapter());
+      _registerAdapterSafe(TriggerAdapter());
+      _registerAdapterSafe(RelationshipAdapter());
+      _registerAdapterSafe(RecipientAdapter());
+      _registerAdapterSafe(UserQuotaAdapter());
+      _registerAdapterSafe(DurationAdapter());
 
-    _triggerBox = await Hive.openBox<Trigger>('triggers');
-    _recipientBox = await Hive.openBox<Recipient>('recipients');
-    _quotaBox = await Hive.openBox<UserQuota>('user_quotas');
-    _settingsBox = await Hive.openBox<String>('settings');
+      _triggerBox = await Hive.openBox<Trigger>('triggers');
+      _recipientBox = await Hive.openBox<Recipient>('recipients');
+      _quotaBox = await Hive.openBox<UserQuota>('user_quotas');
+      _settingsBox = await Hive.openBox<String>('settings');
 
-    // Initialize default UserQuota if empty
-    if (_quotaBox.isEmpty) {
-      await _quotaBox.put('default', UserQuota(freeTriggersRemaining: 1));
+      // Initialize default UserQuota if empty
+      if (_quotaBox.isEmpty) {
+        await _quotaBox.put('default', UserQuota(freeTriggersRemaining: 1));
+      }
+    } catch (e) {
+      debugPrint('ERROR: Failed to initialize StorageService: $e');
+      try {
+        if (!Hive.isBoxOpen('settings')) {
+          _settingsBox = await Hive.openBox<String>('settings');
+        }
+        await saveLastError('StorageService Init Error: $e');
+      } catch (innerErr) {
+        debugPrint('ERROR: Failed to write last_error during StorageService init: $innerErr');
+      }
     }
   }
 
