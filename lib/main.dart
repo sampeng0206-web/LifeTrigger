@@ -12,6 +12,9 @@ import 'services/storage_service.dart';
 import 'services/notification_service.dart';
 import 'services/purchase_service.dart';
 import 'services/ad_service.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,9 +34,27 @@ void main() async {
   final purchaseService = container.read(purchaseServiceProvider);
   await purchaseService.init();
 
-  // 4. Initialize AdMob Ad Service
-  final adService = container.read(adServiceProvider);
-  await adService.init();
+  // 4. Initialize Firebase and Remote Config
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp();
+    }
+    final remoteConfig = FirebaseRemoteConfig.instance;
+    await remoteConfig.setConfigSettings(RemoteConfigSettings(
+      fetchTimeout: const Duration(minutes: 1),
+      minimumFetchInterval: const Duration(hours: 1),
+    ));
+    await remoteConfig.setDefaults(const {
+      "ad_banner_enabled": true,
+      "ad_banner_image_url": "",
+      "ad_banner_target_url": "mailto:sampeng0206@gmail.com",
+      "ad_banner_link_type": "mailto",
+    });
+    await remoteConfig.fetchAndActivate();
+  } catch (e) {
+    debugPrint('Firebase/RemoteConfig initialization failed: $e');
+  }
+
 
   // 5. Check for overdue triggers upon launch
   try {

@@ -52,14 +52,6 @@
 	</array>
 	<key>NSFaceIDUsageDescription</key>
 	<string>本App使用Face ID保護您的交代內容，避免他人隨意開啟。</string>
-	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3755777658581400~7894267036</string>
-	<key>SKAdNetworkItems</key>
-	<array>
-		<dict>
-			<key>SKAdNetworkIdentifier</key>
-			<string>cstr6suwn9.sknetwork</string>
-		</dict>
-	</array>
+
 </dict>
 </plist>

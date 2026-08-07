@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "663371997923",
+    "project_id": "whos-behind-a7699",
+    "storage_bucket": "whos-behind-a7699.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:663371997923:android:1b6d5e4404687a2922dbd6",
+        "android_client_info": {
+          "package_name": "com.moneyback.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBrJVK2fQn7pKsTHSnd9VXjW2hHDC_Ylbc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:663371997923:android:c381c0994c210c5122dbd6",
+        "android_client_info": {
+          "package_name": "com.sampeng.legacyflow"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBrJVK2fQn7pKsTHSnd9VXjW2hHDC_Ylbc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:663371997923:android:93487eb8ce25f08c22dbd6",
+        "android_client_info": {
+          "package_name": "com.sampeng.lifetrigger"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBrJVK2fQn7pKsTHSnd9VXjW2hHDC_Ylbc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../services/ad_service.dart';
+import '../widgets/remote_ad_banner.dart';
 
 class SuccessScreen extends ConsumerStatefulWidget {
   const SuccessScreen({super.key});
@@ -12,46 +12,6 @@ class SuccessScreen extends ConsumerStatefulWidget {
 }
 
 class _SuccessScreenState extends ConsumerState<SuccessScreen> {
-  BannerAd? _bannerAd;
-  bool _isAdLoaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAd();
-    // 預先載入插頁廣告
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(adServiceProvider).loadInterstitialAd();
-    });
-  }
-
-  void _loadAd() {
-    final adService = ref.read(adServiceProvider);
-    
-    // 呼叫 adService 載入非個人化廣告 Banner（若已購買則回傳 null）
-    _bannerAd = adService.createBannerAd(
-      onAdLoaded: () {
-        if (mounted) {
-          setState(() {
-            _isAdLoaded = true;
-          });
-        }
-      },
-      onAdFailedToLoad: (ad, error) {
-        if (mounted) {
-          setState(() {
-            _isAdLoaded = false;
-          });
-        }
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _bannerAd?.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,42 +66,16 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
               const Spacer(),
 
               // 廣告區塊（僅限免費方案且成功載入廣告時）
-              if (_bannerAd != null)
-                Container(
-                  margin: const EdgeInsets.symmetric(vertical: 20),
-                  alignment: Alignment.center,
-                  child: _isAdLoaded
-                      ? Container(
-                          width: _bannerAd!.size.width.toDouble(),
-                          height: _bannerAd!.size.height.toDouble(),
-                          child: AdWidget(ad: _bannerAd!),
-                        )
-                      : Container(
-                          height: 50,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[900],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            '載入廣告中...',
-                            style: TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                        ),
-                ),
+              RemoteAdBanner(
+                shouldShow: ref.read(adServiceProvider).shouldShowAds(),
+              ),
 
               const Spacer(),
 
               // 返回首頁按鈕
               ElevatedButton(
                 onPressed: () {
-                  ref.read(adServiceProvider).showInterstitialAd(
-                    onAdClosed: () {
-                      if (context.mounted) {
-                        context.go('/home');
-                      }
-                    },
-                  );
+                  context.go('/home');
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueAccent,

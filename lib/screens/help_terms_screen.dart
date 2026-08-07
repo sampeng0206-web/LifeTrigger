@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../services/ad_service.dart';
+import '../widgets/remote_ad_banner.dart';
 
 class HelpTermsScreen extends ConsumerStatefulWidget {
   const HelpTermsScreen({super.key});
@@ -11,40 +11,6 @@ class HelpTermsScreen extends ConsumerStatefulWidget {
 }
 
 class _HelpTermsScreenState extends ConsumerState<HelpTermsScreen> {
-  BannerAd? _bannerAd;
-  bool _isAdLoaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAd();
-  }
-
-  void _loadAd() {
-    final adService = ref.read(adServiceProvider);
-    _bannerAd = adService.createBannerAd(
-      onAdLoaded: () {
-        if (mounted) {
-          setState(() {
-            _isAdLoaded = true;
-          });
-        }
-      },
-      onAdFailedToLoad: (ad, error) {
-        if (mounted) {
-          setState(() {
-            _isAdLoaded = false;
-          });
-        }
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _bannerAd?.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,23 +61,9 @@ class _HelpTermsScreenState extends ConsumerState<HelpTermsScreen> {
             ),
             
             // 廣告區塊（僅限免費方案且載入廣告時，放置於最底部）
-            if (_bannerAd != null)
-              Container(
-                alignment: Alignment.center,
-                width: double.infinity,
-                height: _bannerAd!.size.height.toDouble(),
-                color: Colors.grey[950],
-                child: _isAdLoaded
-                    ? AdWidget(ad: _bannerAd!)
-                    : Container(
-                        height: 50,
-                        alignment: Alignment.center,
-                        child: const Text(
-                          '載入廣告中...',
-                          style: TextStyle(color: Colors.grey, fontSize: 11),
-                        ),
-                      ),
-              ),
+            RemoteAdBanner(
+              shouldShow: ref.read(adServiceProvider).shouldShowAds(),
+            ),
           ],
         ),
       ),
