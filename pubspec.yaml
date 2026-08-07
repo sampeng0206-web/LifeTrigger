@@ -2,7 +2,7 @@ name: life_trigger
 description: "安心交代通知系統 - 萬一我消失"
 publish_to: 'none'
 
-version: 1.0.0+10
+version: 1.0.1+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
