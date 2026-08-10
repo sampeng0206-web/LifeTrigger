@@ -62,17 +62,26 @@ class RemoteAdBanner extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final remoteConfig = FirebaseRemoteConfig.instance;
-    
-    // Retrieve values from Remote Config
-    final bool isEnabled = remoteConfig.getBool('ad_banner_enabled');
+    bool isEnabled = true;
+    String imageUrl = "";
+    String targetUrl = "mailto:sampeng0206@gmail.com";
+    String linkType = "mailto";
+
+    try {
+      final remoteConfig = FirebaseRemoteConfig.instance;
+      // Retrieve values from Remote Config
+      isEnabled = remoteConfig.getBool('ad_banner_enabled');
+      imageUrl = remoteConfig.getString('ad_banner_image_url');
+      targetUrl = remoteConfig.getString('ad_banner_target_url');
+      linkType = remoteConfig.getString('ad_banner_link_type');
+    } catch (e) {
+      debugPrint('Error accessing Firebase Remote Config: $e. Using local defaults.');
+      // Keep local defaults: isEnabled = true, imageUrl = "", targetUrl = mailto, linkType = mailto
+    }
+
     if (!isEnabled) {
       return const SizedBox.shrink();
     }
-
-    final String imageUrl = remoteConfig.getString('ad_banner_image_url');
-    final String targetUrl = remoteConfig.getString('ad_banner_target_url');
-    final String linkType = remoteConfig.getString('ad_banner_link_type');
 
     return GestureDetector(
       onTap: () => _handleTap(targetUrl, linkType),
