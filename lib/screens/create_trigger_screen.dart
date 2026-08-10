@@ -815,10 +815,25 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
       quotaText = '無限次';
     }
 
+    final isGuardian = quota.isCloudGuardianActive;
     final duration = _getSelectedDuration();
-    final requiresCloud = duration > const Duration(days: 7);
+    final requiresCloud = isGuardian || duration > const Duration(days: 7);
     final hours = duration.inHours;
     final minutes = duration.inMinutes % 60;
+
+    final Color accentColor = isGuardian
+        ? Colors.tealAccent
+        : (requiresCloud ? Colors.redAccent : Colors.amberAccent);
+
+    final IconData statusIcon = isGuardian
+        ? Icons.cloud_done_rounded
+        : (requiresCloud ? Icons.cloud_upload_rounded : Icons.warning_amber_rounded);
+
+    final String warningText = isGuardian
+        ? '【已啟用雲端同步保護】您目前使用的是「守護版」方案，此任務已啟用雲端同步保護，並由伺服器系統進行可靠的背景排程。即使您關閉 App、手機關機或損毀，通知仍會於到期時準時寄出。請勿刪除本 App 以便正常管理此任務。'
+        : (requiresCloud
+            ? '您目前設定的確認間隔超過7天，此任務已上傳至伺服器由系統排程，請勿刪除本App。刪除後將無法在此裝置上查看或管理此任務，但只要伺服器排程持續運作，通知仍會於到期時準時寄出。'
+            : '您目前設定的確認間隔為7天以內，且目前使用 ${quota.isLocalUnlimited ? "安心版" : "免費體驗版"} 方案，此任務僅儲存於您的手機本機。本方案需保持 App 在背景或定期開啟以維持背景運作，才能確保到期時準時發信。若刪除App，此任務將完全消失。如需完整且免開啟 App 的雲端可靠排程保障，請升級為【守護版】。');
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -867,20 +882,18 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: requiresCloud ? Colors.redAccent.withOpacity(0.1) : Colors.amberAccent.withOpacity(0.1),
+              color: accentColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: requiresCloud ? Colors.redAccent.withOpacity(0.3) : Colors.amberAccent.withOpacity(0.3)),
+              border: Border.all(color: accentColor.withOpacity(0.3)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.warning_amber_rounded, color: requiresCloud ? Colors.redAccent : Colors.amberAccent, size: 20),
+                Icon(statusIcon, color: accentColor, size: 20),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    requiresCloud
-                        ? '您目前設定的確認間隔超過7天，此任務已上傳至伺服器由系統排程，請勿刪除本App。刪除後將無法在此裝置上查看或管理此任務，但只要伺服器排程持續運作，通知仍會於到期時準時寄出。任務寄出後，伺服器上的內容資料將被清除，我們不會長期保留您的信件內容。'
-                        : '您目前設定的確認間隔為7天以內，此任務僅儲存於您的手機本機，若刪除App，此任務將完全消失，屆時將不會寄出任何通知，請務必保留App直到任務完成或您已手動確認安全。',
+                    warningText,
                     style: TextStyle(fontSize: 13, color: Colors.grey[300], height: 1.4),
                   ),
                 ),

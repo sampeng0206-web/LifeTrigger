@@ -160,14 +160,18 @@ class StorageService {
       await saveUserQuota(quota);
     }
 
-    // Determine if it requires cloud (more than 7 days)
+    // Determine if it requires cloud (more than 7 days, OR if the user is a Cloud Guardian subscriber)
     bool requiresCloud = false;
-    if (intervalDuration != null && intervalDuration > const Duration(days: 7)) {
+    if (quota.isCloudGuardianActive) {
       requiresCloud = true;
-    }
-    if (scheduledDeadline != null &&
-        scheduledDeadline.difference(DateTime.now()) > const Duration(days: 7)) {
-      requiresCloud = true;
+    } else {
+      if (intervalDuration != null && intervalDuration > const Duration(days: 7)) {
+        requiresCloud = true;
+      }
+      if (scheduledDeadline != null &&
+          scheduledDeadline.difference(DateTime.now()) > const Duration(days: 7)) {
+        requiresCloud = true;
+      }
     }
 
     final id = _ref.read(notificationServiceProvider).generateUuid();
