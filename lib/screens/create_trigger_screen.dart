@@ -201,6 +201,8 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
   Future<void> _save() async {
     if (_isSubmitting) return;
 
+    final router = GoRouter.of(context); // 提前獲取 router 實例，避免跨 async gap 使用 context
+
     setState(() {
       _isSubmitting = true;
     });
@@ -255,7 +257,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
                 TextButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    context.push('/purchase');
+                    router.push('/purchase');
                   },
                   child: const Text('去升級', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
                 ),
@@ -286,9 +288,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
       } else {
         // 成功，重整 triggers 並導向成功畫面
         ref.read(activeTriggersProvider.notifier).refresh();
-        if (mounted) {
-          context.go('/success');
-        }
+        router.go('/success');
       }
     } finally {
       if (mounted) {
