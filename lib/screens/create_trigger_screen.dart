@@ -6,6 +6,7 @@ import '../services/storage_service.dart';
 import '../services/purchase_service.dart';
 import '../models/trigger.dart';
 import '../models/recipient.dart';
+import '../widgets/remote_ad_banner.dart';
 import 'home_screen.dart';
 import 'purchase_screen.dart';
 
@@ -510,6 +511,11 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
                 }
               },
             ),
+            const SizedBox(height: 30),
+            Container(
+              width: double.infinity,
+              child: const RemoteAdBanner(shouldShow: true),
+            ),
           ],
         ),
       ),
@@ -747,6 +753,11 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
                 ),
               ],
             ],
+            const SizedBox(height: 30),
+            Container(
+              width: double.infinity,
+              child: const RemoteAdBanner(shouldShow: true),
+            ),
           ],
         ),
       ),
@@ -798,6 +809,11 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
               style: const TextStyle(color: Colors.white),
               decoration: _buildInputDecoration('例如：我們第一次出遊去了哪裡？'),
               validator: (val) => (val == null || val.trim().isEmpty) ? '請填寫共同回憶' : null,
+            ),
+            const SizedBox(height: 30),
+            Container(
+              width: double.infinity,
+              child: const RemoteAdBanner(shouldShow: true),
             ),
           ],
         ),
@@ -906,6 +922,11 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
               quotaText,
               style: TextStyle(fontSize: 14, color: Colors.grey[400], fontWeight: FontWeight.bold),
             ),
+          ),
+          const SizedBox(height: 30),
+          Container(
+            width: double.infinity,
+            child: const RemoteAdBanner(shouldShow: true),
           ),
         ],
       ),

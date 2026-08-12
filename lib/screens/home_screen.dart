@@ -7,6 +7,7 @@ import '../models/trigger.dart';
 import '../widgets/brand_intro_view.dart';
 import '../widgets/trigger_list_view.dart';
 import '../widgets/confirm_all_dialog.dart';
+import '../widgets/remote_ad_banner.dart';
 
 final activeTriggersProvider = StateNotifierProvider<ActiveTriggersNotifier, List<Trigger>>((ref) {
   return ActiveTriggersNotifier(ref.read(storageServiceProvider));
@@ -179,12 +180,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         ],
       ),
       body: SafeArea(
-        child: hasActive
-            ? Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                child: TriggerListView(activeTriggers: activeTriggers),
-              )
-            : const BrandIntroView(),
+        child: Column(
+          children: [
+            Expanded(
+              child: hasActive
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                      child: TriggerListView(activeTriggers: activeTriggers),
+                    )
+                  : const BrandIntroView(),
+            ),
+            Container(
+              width: double.infinity,
+              child: const RemoteAdBanner(shouldShow: true),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: hasActive
           ? _buildFloatingPresenceButton(context, activeTriggers)

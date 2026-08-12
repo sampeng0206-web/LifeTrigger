@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../services/ad_service.dart';
-import '../widgets/remote_ad_banner.dart';
 
 class SuccessScreen extends ConsumerStatefulWidget {
   const SuccessScreen({super.key});
@@ -63,13 +61,6 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
                 ),
               ),
               
-              const Spacer(),
-
-              // 廣告區塊（僅限免費方案且成功載入廣告時）
-              RemoteAdBanner(
-                shouldShow: ref.read(adServiceProvider).shouldShowAds(),
-              ),
-
               const Spacer(),
 
               // 返回首頁按鈕
