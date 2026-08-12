@@ -264,6 +264,14 @@ class StorageService {
     await _settingsBox.put('user_email', email);
   }
 
+  bool getShownExactAlarmDialog() {
+    return _settingsBox.get('shown_exact_alarm_dialog') == 'true';
+  }
+
+  Future<void> setShownExactAlarmDialog(bool shown) async {
+    await _settingsBox.put('shown_exact_alarm_dialog', shown.toString());
+  }
+
   String? getLastError() {
     return _settingsBox.get('last_error');
   }

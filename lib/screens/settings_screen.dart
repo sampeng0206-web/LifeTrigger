@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/exact_alarm_service.dart';
 import '../services/storage_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -9,15 +11,17 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   bool _isSaving = false;
   String? _lastError;
+  bool _hasExactAlarmPermission = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadSettings();
   }
 
@@ -26,12 +30,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final email = storage.getUserEmail() ?? '';
     _emailController.text = email;
     _lastError = storage.getLastError();
+    _checkExactAlarmPermission();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _emailController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkExactAlarmPermission();
+    }
+  }
+
+  void _checkExactAlarmPermission() {
+    if (Platform.isAndroid) {
+      ExactAlarmService.canScheduleExactAlarms().then((hasPerm) {
+        if (mounted) {
+          setState(() {
+            _hasExactAlarmPermission = hasPerm;
+          });
+        }
+      });
+    }
   }
 
   Future<void> _saveSettings() async {
@@ -164,6 +189,98 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     return null;
                   },
                 ),
+                if (Platform.isAndroid) ...[
+                  const SizedBox(height: 28),
+                  const Text(
+                    '系統權限設定',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[900]?.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.grey[800]!.withOpacity(0.5),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.alarm_on_rounded, color: Colors.blueAccent, size: 24),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Text(
+                                '精確鬧鐘排程',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _hasExactAlarmPermission
+                                    ? Colors.green.withOpacity(0.15)
+                                    : Colors.amber.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: _hasExactAlarmPermission
+                                      ? Colors.green.withOpacity(0.3)
+                                      : Colors.amber.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Text(
+                                _hasExactAlarmPermission ? '已啟用' : '未啟用',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: _hasExactAlarmPermission ? Colors.green : Colors.amber,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          '在 Android 12 以上版本中，精確排程權限能確保本地防呆通知在精確時間送達。若被關閉，通知時間將會被系統大幅延遲。',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[400],
+                            height: 1.5,
+                          ),
+                        ),
+                        if (!_hasExactAlarmPermission) ...[
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                await ExactAlarmService.openExactAlarmSettings();
+                              },
+                              icon: const Icon(Icons.settings_outlined, size: 16),
+                              label: const Text('前往系統設定開啟'),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.blueAccent),
+                                foregroundColor: Colors.blueAccent,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 40),
 
                 // Submit Button

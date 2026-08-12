@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../services/exact_alarm_service.dart';
+import '../services/storage_service.dart';
 
 class SuccessScreen extends ConsumerStatefulWidget {
   const SuccessScreen({super.key});
@@ -10,6 +13,66 @@ class SuccessScreen extends ConsumerStatefulWidget {
 }
 
 class _SuccessScreenState extends ConsumerState<SuccessScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndShowExactAlarmDialog();
+    });
+  }
+
+  Future<void> _checkAndShowExactAlarmDialog() async {
+    if (!Platform.isAndroid) return;
+
+    final storage = ref.read(storageServiceProvider);
+    final shown = storage.getShownExactAlarmDialog();
+    if (shown) return;
+
+    // Check if permission is granted
+    final hasPermission = await ExactAlarmService.canScheduleExactAlarms();
+    if (!hasPermission) {
+      // Mark as shown immediately so we never show it again
+      await storage.setShownExactAlarmDialog(true);
+      if (mounted) {
+        _showExactAlarmDialog();
+      }
+    }
+  }
+
+  void _showExactAlarmDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          '請允許精確排程',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          '為了確保您設定的通知能準時送達，請允許精確排程。若未開啟此功能，本機防呆通知可能會延遲數小時送達。',
+          style: TextStyle(color: Color(0xFFCCCCCC), fontSize: 15, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('稍後再說', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await ExactAlarmService.openExactAlarmSettings();
+            },
+            child: const Text(
+              '前往設定',
+              style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
