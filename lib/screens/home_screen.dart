@@ -192,6 +192,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             ),
             Container(
               width: double.infinity,
+              margin: EdgeInsets.only(bottom: hasActive ? 85 : 0),
               child: const RemoteAdBanner(shouldShow: true),
             ),
           ],

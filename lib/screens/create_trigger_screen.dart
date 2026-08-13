@@ -83,6 +83,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
   }
 
   Future<void> _onNextPressed() async {
+    if (_isSubmitting) return;
     if (_currentStep == 0) {
       if (_formKey1.currentState!.validate()) {
         _nextPage();
@@ -251,13 +252,19 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    router.go('/home');
+                  },
                   child: const Text('取消', style: TextStyle(color: Colors.grey)),
                 ),
                 TextButton(
-                  onPressed: () {
+                  onPressed: () async {
                     Navigator.pop(context);
-                    router.push('/purchase');
+                    await router.push('/purchase');
+                    if (mounted) {
+                      router.go('/home');
+                    }
                   },
                   child: const Text('去升級', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
                 ),
@@ -288,7 +295,9 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
       } else {
         // 成功，重整 triggers 並導向成功畫面
         ref.read(activeTriggersProvider.notifier).refresh();
-        router.go('/success');
+        if (mounted) {
+          router.go('/success');
+        }
       }
     } finally {
       if (mounted) {
