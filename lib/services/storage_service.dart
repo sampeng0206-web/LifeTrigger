@@ -195,7 +195,13 @@ class StorageService {
     await saveTrigger(newTrigger);
 
     // Schedule notifications
-    await _ref.read(notificationServiceProvider).scheduleWarningNotifications(newTrigger);
+    try {
+      debugPrint('LOG: scheduling warning notifications in createNewTrigger...');
+      await _ref.read(notificationServiceProvider).scheduleWarningNotifications(newTrigger);
+      debugPrint('LOG: warning notifications scheduled successfully');
+    } catch (e, stack) {
+      debugPrint('LOG ERROR: Failed to schedule notifications in createNewTrigger: $e, Stack: $stack');
+    }
 
     // Sync to cloud if needed
     if (requiresCloud) {
@@ -400,6 +406,19 @@ class StorageService {
     if (trigger.requiresCloud) {
       final cloudSync = _ref.read(cloudSyncServiceProvider);
       await cloudSync.cancelCloudTrigger(triggerId);
+    }
+  }
+
+  Future<void> rescheduleAllActiveTriggers() async {
+    debugPrint('LOG: rescheduleAllActiveTriggers() started');
+    final active = getActiveTriggers();
+    for (var trigger in active) {
+      try {
+        await _ref.read(notificationServiceProvider).scheduleWarningNotifications(trigger);
+        debugPrint('LOG: Successfully rescheduled notifications for trigger ${trigger.id}');
+      } catch (e, stack) {
+        debugPrint('LOG ERROR: Failed to reschedule notifications for trigger ${trigger.id}. Error: $e, Stack: $stack');
+      }
     }
   }
 }

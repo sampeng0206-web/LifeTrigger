@@ -6,6 +6,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:uuid/uuid.dart';
 import '../models/trigger.dart' hide Importance;
 import 'storage_service.dart';
+import 'exact_alarm_service.dart';
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
   return NotificationService(ref);
@@ -133,16 +134,26 @@ class NotificationService {
           iOS: iosDetails,
         );
 
-        await _notificationsPlugin.zonedSchedule(
-          baseId + i,
-          '安心交代通知',
-          '距離下一次確認還有 $remainingText，請開啟App確認一切都好',
-          tzTime,
-          notificationDetails,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        );
+        final hasExactPermission = await ExactAlarmService.canScheduleExactAlarms();
+        final scheduleMode = hasExactPermission
+            ? AndroidScheduleMode.exactAllowWhileIdle
+            : AndroidScheduleMode.inexactAllowWhileIdle;
+
+        try {
+          await _notificationsPlugin.zonedSchedule(
+            baseId + i,
+            '安心交代通知',
+            '距離下一次確認還有 $remainingText，請開啟App確認一切都好',
+            tzTime,
+            notificationDetails,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+            androidScheduleMode: scheduleMode,
+          );
+          debugPrint('LOG: Successfully scheduled notification $i with mode: $scheduleMode');
+        } catch (e, stack) {
+          debugPrint('LOG ERROR: Failed to schedule zoned notification $i. Error: $e, Stack: $stack');
+        }
       }
     }
   }

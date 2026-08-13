@@ -75,6 +75,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _checkOverdueAndRefresh();
+      ref.read(storageServiceProvider).rescheduleAllActiveTriggers();
     }
   }
 
@@ -192,7 +193,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             ),
             Container(
               width: double.infinity,
-              margin: EdgeInsets.only(bottom: hasActive ? 85 : 0),
               child: const RemoteAdBanner(shouldShow: true),
             ),
           ],
@@ -209,7 +209,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     return Container(
       height: 58,
       width: 200,
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 95),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(29),
         gradient: const LinearGradient(

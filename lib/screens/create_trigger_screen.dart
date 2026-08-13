@@ -202,6 +202,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
   Future<void> _save() async {
     if (_isSubmitting) return;
 
+    debugPrint('LOG: _save() started');
     final router = GoRouter.of(context); // 提前獲取 router 實例，避免跨 async gap 使用 context
 
     setState(() {
@@ -215,6 +216,7 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
       // 0. 保存並鎖定通知副本 Email
       final backupEmail = _backupEmailController.text.trim();
       if (backupEmail.isNotEmpty) {
+        debugPrint('LOG: saving user backup email...');
         await storage.saveUserEmail(backupEmail);
       }
 
@@ -226,9 +228,11 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
         relationship: _selectedRelationship,
       );
 
+      debugPrint('LOG: saving recipient...');
       await storage.saveRecipient(recipient);
 
       // 2. Create Trigger
+      debugPrint('LOG: calling createNewTrigger()...');
       final result = await storage.createNewTrigger(
         mode: TriggerMode.quick,
         intervalDuration: duration,
@@ -238,6 +242,8 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
         sharedMemoryPrompt: _sharedMemoryController.text.trim(),
         userEmail: backupEmail.isNotEmpty ? backupEmail : null,
       );
+
+      debugPrint('LOG: createNewTrigger() result status: ${result.status}');
 
       if (result.status == CreateTriggerStatus.quotaExceeded) {
         if (mounted) {
@@ -296,10 +302,33 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
         // 成功，重整 triggers 並導向成功畫面
         ref.read(activeTriggersProvider.notifier).refresh();
         if (mounted) {
+          debugPrint('LOG: navigate to success screen');
           router.go('/success');
         }
       }
+    } catch (e, stack) {
+      debugPrint('LOG ERROR: unexpected exception in _save: $e\n$stack');
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: Colors.grey[900],
+            title: const Text('建立失敗', style: TextStyle(color: Colors.white)),
+            content: Text(
+              '發生未預期的錯誤，請稍後重試。錯誤資訊：$e',
+              style: const TextStyle(color: Colors.grey),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('確定', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      }
     } finally {
+      debugPrint('LOG: _save() finished');
       if (mounted) {
         setState(() {
           _isSubmitting = false;
@@ -458,10 +487,20 @@ class _CreateTriggerScreenState extends ConsumerState<CreateTriggerScreen> {
                 ),
                 onPressed: isNextDisabled ? null : _onNextPressed,
                 child: _isSubmitting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    ? const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            '處理中...',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                          ),
+                        ],
                       )
                     : Text(
                         _currentStep == 3 ? '啟動安心守護' : '下一步',
