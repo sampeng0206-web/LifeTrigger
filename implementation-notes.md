@@ -96,6 +96,22 @@
    - 【逾時涵蓋不全】已驗證通過：HTTP階段12秒timeout、RevenueCat 8秒timeout，逾時皆有log與錯誤提示彈窗，不會掛起
    - 【App啟動死循環】部分驗證通過，非死循環但有UX待優化：中途取消或關閉App後，只要本地DB為空且使用者為訂閱會員，冷啟動時會再次跳出還原詢問對話框，每次都要手動選擇「暫時不要」或「立即還原」
 
+### Google Play 政策合規升級 (2026-10-21)
+1. **升級 `purchases_flutter` 以支援 Google Play Billing Library 8.0.0+**：
+   - `pubspec.yaml` 中 `purchases_flutter` 由 `^8.2.0` 改為 `^9.0.0`，`pubspec.lock` 實際版本由 **`8.11.0` 升級至 `9.16.2`**（底層依賴 `purchases-hybrid-common:17.55.2` / `purchases-android:9.29.0`）。
+   - **API 語法更新**：因應 `purchases_flutter` 9.x 的回傳型別與參數變更，將 `lib/services/purchase_service.dart` 中的 `Purchases.purchasePackage(package)` 替換為新版建議寫法 `Purchases.purchase(PurchaseParams.package(package))`，並從回傳的 `PurchaseResult` 讀取 `purchaseResult.customerInfo`。
+   - **Billing Library 8.0.0 實測證據**：執行 `flutter build appbundle --release` 後，透過 `./gradlew :app:dependencies --configuration releaseRuntimeClasspath` 確認依賴解析為 `com.android.billingclient:billing:8.0.0`；並直接解壓檢視 `build/app/outputs/bundle/release/app-release.aab` 內部的 `base/root/billing.properties`，確認內容為：
+     ```properties
+     version=8.0.0
+     client=billing
+     billing_client=8.0.0
+     ```
+2. **明確鎖定 `compileSdk` 與 `targetSdk` 為 Android 16 (API 36)**：
+   - 修改 `android/app/build.gradle.kts`，將原本動態引用的 `compileSdk = flutter.compileSdkVersion` 與 `targetSdk = flutter.targetSdkVersion` 明確寫死為 **`compileSdk = 36`** 與 **`targetSdk = 36`**，避免不同建置環境（如 Codemagic）因 Flutter 預設值差異產生落差。
+   - **行為差異與通知排程檢查**：經檢視 `notification_service.dart`、`exact_alarm_service.dart`、`MainActivity.kt` 與 `AndroidManifest.xml`，專案已具備 `POST_NOTIFICATIONS` 權限請求以及 `SCHEDULE_EXACT_ALARM` 的動態權限檢查與自動降級機制（未授權時自動降級為 `inexactAllowWhileIdle`），在 API 36 下無新增權限錯誤或行為破壞。
+3. **版本號提升**：
+   - `pubspec.yaml` 版本號由 `1.0.2+22` 提升至 **`1.0.2+23`**。
+
 ---
 
 ## 偏離

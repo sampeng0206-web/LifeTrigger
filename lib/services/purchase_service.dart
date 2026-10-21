@@ -62,8 +62,8 @@ class PurchaseService {
 
   Future<bool> purchasePackage(Package package) async {
     try {
-      final customerInfo = await Purchases.purchasePackage(package);
-      await _updateEntitlements(customerInfo);
+      final purchaseResult = await Purchases.purchase(PurchaseParams.package(package));
+      await _updateEntitlements(purchaseResult.customerInfo);
       return true;
     } catch (e) {
       debugPrint('ERROR: Failed to purchase package: $e');
